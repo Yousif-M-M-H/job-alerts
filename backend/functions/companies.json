@@ -69,6 +69,62 @@
     "paused": false
   },
   {
+    "id": "landisgyr",
+    "name": "Landis+Gyr",
+    "ats": "successfactors",
+    "atsConfig": { "host": "careers.landisgyr.com" },
+    "filter": {
+      "titleAlways": ["software", "developer", "firmware", "embedded"],
+      "titleInclude": ["engineer"],
+      "titleExclude": ["sales", "hardware", "mechanical", "electrical", "manufacturing", "quality", "process"],
+      "locations": []
+    },
+    "minScore": 70,
+    "paused": false
+  },
+  {
+    "id": "bentley",
+    "name": "Bentley Systems",
+    "ats": "workday",
+    "atsConfig": { "host": "bentleysystems.wd5.myworkdayjobs.com", "tenant": "bentleysystems", "site": "bentley" },
+    "filter": {
+      "titleAlways": ["software", "developer", "programmer"],
+      "titleInclude": ["engineer"],
+      "titleExclude": ["sales", "civil", "structural", "geotechnical", "mechanical"],
+      "locations": []
+    },
+    "minScore": 70,
+    "paused": false
+  },
+  {
+    "id": "itron",
+    "name": "Itron",
+    "ats": "workday",
+    "atsConfig": { "host": "itron.wd5.myworkdayjobs.com", "tenant": "itron", "site": "Itron" },
+    "filter": {
+      "titleAlways": ["software", "developer", "firmware", "embedded"],
+      "titleInclude": ["engineer"],
+      "titleExclude": ["sales", "hardware", "mechanical", "electrical", "manufacturing", "quality"],
+      "locations": []
+    },
+    "minScore": 70,
+    "paused": false
+  },
+  {
+    "id": "itron_early",
+    "name": "Itron (Early Careers)",
+    "ats": "workday",
+    "atsConfig": { "host": "itron.wd5.myworkdayjobs.com", "tenant": "itron", "site": "Early_Careers" },
+    "filter": {
+      "titleAlways": ["software", "developer", "firmware", "embedded", "data"],
+      "titleInclude": ["engineer"],
+      "titleExclude": ["sales", "hardware", "mechanical", "electrical", "manufacturing", "quality"],
+      "locations": []
+    },
+    "minScore": 70,
+    "paused": false
+  },
+  {
     "id": "bcbst",
     "name": "BlueCross BlueShield of Tennessee",
     "ats": "workday",
