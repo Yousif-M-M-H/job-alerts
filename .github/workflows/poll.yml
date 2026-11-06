@@ -32,6 +32,8 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CV_TEXT: ${{ secrets.CV_TEXT }}
         run: python -m job_alerts.cli
       # Always save: alerts already sent must stay marked seen even if a later job failed.
       - name: Save seen jobs

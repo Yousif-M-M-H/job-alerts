@@ -1,6 +1,8 @@
 """Core data types. All frozen: pipeline steps return new values."""
 from dataclasses import dataclass, field
 
+DEFAULT_MIN_SCORE = 70
+
 
 @dataclass(frozen=True)
 class TitleLocationFilter:
@@ -20,6 +22,7 @@ class Company:
     ats_config: dict[str, str]
     filter: TitleLocationFilter = field(default_factory=TitleLocationFilter)
     is_paused: bool = False
+    min_score: int = DEFAULT_MIN_SCORE
 
 
 @dataclass(frozen=True)
@@ -46,6 +49,12 @@ class Job:
 
 
 @dataclass(frozen=True)
+class JobScore:
+    score: int
+    reason: str
+
+
+@dataclass(frozen=True)
 class PollResult:
     company_id: str
     total_listed: int = 0
@@ -53,6 +62,8 @@ class PollResult:
     new_count: int = 0
     rejected_title: tuple[str, ...] = ()
     rejected_location: tuple[str, ...] = ()
+    rejected_score: tuple[tuple[str, int], ...] = ()
     candidates: tuple[Job, ...] = ()
+    alerted_scores: tuple[int | None, ...] = ()
     baseline_title_matches: tuple[JobSummary, ...] = ()
     failed_ids: tuple[str, ...] = ()

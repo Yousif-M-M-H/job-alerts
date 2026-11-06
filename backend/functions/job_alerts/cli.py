@@ -12,9 +12,10 @@ from pathlib import Path
 from .adapters.base import AdapterError
 from .adapters.registry import build_adapter
 from .config import ConfigError, parse_companies
+from .matching.rerank import ClaudeScorer
 from .models import PollResult
 from .notify.telegram import TelegramNotifier
-from .pipeline import poll_company
+from .pipeline import Scorer, poll_company
 from .store.json_store import JsonStore
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -29,10 +30,23 @@ def _print_result(result: PollResult) -> None:
         return
     print(
         f"  new {result.new_count}, alerted {len(result.candidates)}, rejected by title "
-        f"{len(result.rejected_title)}, by location {len(result.rejected_location)}, failed {len(result.failed_ids)}"
+        f"{len(result.rejected_title)}, by location {len(result.rejected_location)}, "
+        f"by score {len(result.rejected_score)}, failed {len(result.failed_ids)}"
     )
-    for job in result.candidates:
-        print(f"  ALERTED {job.id}  {job.title}")
+    # Workflow logs are public: IDs and scores only, never the reason.
+    for job, score in zip(result.candidates, result.alerted_scores):
+        print(f"  ALERTED {job.id}  score {'none' if score is None else score}")
+    for job_id, score in result.rejected_score:
+        print(f"  BELOW THRESHOLD {job_id}  score {score}")
+
+
+def _build_scorer() -> Scorer:
+    """Without credentials, alerts still go out, marked "not scored"."""
+    cv_text = os.environ.get("CV_TEXT", "")
+    if not cv_text.strip() or not os.environ.get("ANTHROPIC_API_KEY"):
+        print("WARNING: CV_TEXT or ANTHROPIC_API_KEY missing, alerts will not be scored.", file=sys.stderr)
+        return lambda job: None
+    return ClaudeScorer(cv_text)
 
 
 def main() -> int:
@@ -61,10 +75,11 @@ def main() -> int:
         return 2
 
     store = JsonStore(args.state)
+    score_job = _build_scorer()
     has_failure = False
     for company in selected:
         try:
-            result = poll_company(company, build_adapter(company), store, notify)
+            result = poll_company(company, build_adapter(company), store, score_job, notify)
         except AdapterError as error:
             # One company failing must not stop the others.
             print(f"\n{company.id}: FAILED: {error}", file=sys.stderr)

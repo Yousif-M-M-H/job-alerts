@@ -58,6 +58,8 @@ Phase 2 alone is already useful: title and location matches reach the phone befo
 - **No overlapping runs.** The workflow uses a concurrency group, so two runs can't both alert or clash on state.
 - **A silent failure looks exactly like "no new jobs".** Phase 4 warns after repeated failures.
 - **A new CV or threshold applies to future jobs only.** Old jobs are not re-scored, so nothing re-alerts.
+- **Scoring model is Haiku** (`MODEL` in `matching/rerank.py`). The threshold is `minScore` in `companies.json`.
+- **Logs are public.** They show job IDs and scores only, never the CV or the reason.
 
 ## Alert format
 

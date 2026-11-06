@@ -1,20 +1,24 @@
 """Dedupe, baseline and retry behaviour, using a fake adapter and the real JSON store."""
 from pathlib import Path
+from types import SimpleNamespace
 
+import anthropic
 import pytest
 import requests
 
 from job_alerts.adapters.base import AdapterError
+from job_alerts.config import ConfigError, parse_company
 from job_alerts.filters import passes_location, passes_title
-from job_alerts.models import Company, Job, JobSummary, TitleLocationFilter
+from job_alerts.matching.rerank import ClaudeScorer
+from job_alerts.models import Company, Job, JobScore, JobSummary, TitleLocationFilter
 from job_alerts.notify.base import NotifyError
 from job_alerts.notify.telegram import TelegramNotifier, format_alert
 from job_alerts.pipeline import poll_company as run_poll
 from job_alerts.store.json_store import JsonStore
 
 
-def poll_company(company, adapter, store, notify=lambda company, job: None):
-    return run_poll(company, adapter, store, notify)
+def poll_company(company, adapter, store, notify=lambda company, job, score: None, scorer=lambda job: None):
+    return run_poll(company, adapter, store, scorer, notify)
 
 RULES = TitleLocationFilter(
     title_include=("software", "engineer"),
@@ -96,13 +100,13 @@ def test_failed_detail_retries_next_poll(store):
 
 def test_baseline_sends_no_alerts(store):
     alerts = []
-    poll_company(COMPANY, FakeAdapter([summary("1")]), store, lambda company, job: alerts.append(job.id))
+    poll_company(COMPANY, FakeAdapter([summary("1")]), store, lambda company, job, score: alerts.append(job.id))
     assert alerts == []
 
 
 def test_new_job_alerts_exactly_once(store):
     alerts = []
-    send = lambda company, job: alerts.append(job.id)
+    send = lambda company, job, score: alerts.append(job.id)
     poll_company(COMPANY, FakeAdapter([]), store, send)
     adapter = FakeAdapter([summary("1")])
     poll_company(COMPANY, adapter, store, send)
@@ -111,7 +115,7 @@ def test_new_job_alerts_exactly_once(store):
 
 
 def test_failed_alert_stays_unseen_and_retries(store):
-    def fail(company, job):
+    def fail(company, job, score):
         raise NotifyError("down")
 
     poll_company(COMPANY, FakeAdapter([]), store)
@@ -121,7 +125,7 @@ def test_failed_alert_stays_unseen_and_retries(store):
 
 
 def test_one_failed_alert_does_not_block_others(store):
-    def fail_first(company, job):
+    def fail_first(company, job, score):
         if job.id == "1":
             raise NotifyError("down")
 
@@ -132,7 +136,82 @@ def test_one_failed_alert_does_not_block_others(store):
 
 def test_alert_has_title_company_location_and_link():
     job = Job("1", "sel", "Firmware Engineer", ("Idaho - Boise", "Utah"), "https://x.test/1", "text")
-    assert format_alert(COMPANY, job) == "Firmware Engineer\nSEL · Idaho - Boise; Utah\nhttps://x.test/1"
+    assert format_alert(COMPANY, job, JobScore(88, "Strong C++.")) == (
+        "Firmware Engineer · 88%\nSEL · Idaho - Boise; Utah\nStrong C++.\nhttps://x.test/1"
+    )
+    assert format_alert(COMPANY, job, None) == (
+        "Firmware Engineer · not scored\nSEL · Idaho - Boise; Utah\nhttps://x.test/1"
+    )
+
+
+def test_below_threshold_stays_silent_and_is_never_rescored(store):
+    alerts, calls = [], []
+
+    def scorer(job):
+        calls.append(job.id)
+        return JobScore(COMPANY.min_score - 1, "weak")
+
+    send = lambda company, job, score: alerts.append(job.id)
+    poll_company(COMPANY, FakeAdapter([]), store)
+    adapter = FakeAdapter([summary("1")])
+    result = poll_company(COMPANY, adapter, store, send, scorer)
+    poll_company(COMPANY, adapter, store, send, scorer)
+    assert alerts == [] and calls == ["1"]
+    assert result.rejected_score == (("1", COMPANY.min_score - 1),)
+
+
+def test_score_at_threshold_alerts_with_score(store):
+    sent = []
+    poll_company(COMPANY, FakeAdapter([]), store)
+    poll_company(
+        COMPANY,
+        FakeAdapter([summary("1")]),
+        store,
+        lambda company, job, score: sent.append(score),
+        lambda job: JobScore(COMPANY.min_score, "fits"),
+    )
+    assert sent == [JobScore(COMPANY.min_score, "fits")]
+
+
+def test_failed_scoring_still_alerts(store):
+    sent = []
+    poll_company(COMPANY, FakeAdapter([]), store)
+    poll_company(COMPANY, FakeAdapter([summary("1")]), store, lambda company, job, score: sent.append((job.id, score)))
+    assert sent == [("1", None)]
+
+
+def fake_client(parse):
+    return SimpleNamespace(messages=SimpleNamespace(parse=parse))
+
+
+JOB = Job("1", "sel", "Dev", ("Boise",), "https://x.test", "text")
+
+
+def test_scorer_returns_parsed_score():
+    response = SimpleNamespace(parsed_output=SimpleNamespace(score=88, reason=" Fits. "), stop_reason="end_turn")
+    assert ClaudeScorer("cv", fake_client(lambda **kwargs: response))(JOB) == JobScore(88, "Fits.")
+
+
+@pytest.mark.parametrize(
+    "output", [None, SimpleNamespace(score=101, reason="x"), SimpleNamespace(score=-1, reason="x")]
+)
+def test_scorer_returns_none_for_unusable_output(output):
+    response = SimpleNamespace(parsed_output=output, stop_reason="refusal")
+    assert ClaudeScorer("cv", fake_client(lambda **kwargs: response))(JOB) is None
+
+
+def test_scorer_returns_none_on_api_failure_without_logging_details(caplog):
+    def fail(**kwargs):
+        raise anthropic.APIConnectionError(request=SimpleNamespace(), message="SECRET-CV")
+
+    assert ClaudeScorer("cv", fake_client(fail))(JOB) is None
+    assert "SECRET-CV" not in caplog.text
+
+
+def test_config_rejects_bad_min_score():
+    raw = {"id": "a", "name": "A", "ats": "workday", "atsConfig": {}, "minScore": 101}
+    with pytest.raises(ConfigError):
+        parse_company(raw)
 
 
 def test_telegram_error_never_contains_token(monkeypatch):
@@ -142,7 +221,7 @@ def test_telegram_error_never_contains_token(monkeypatch):
     monkeypatch.setattr(requests, "post", explode)
     job = Job("1", "sel", "T", ("L",), "https://x.test", "text")
     with pytest.raises(NotifyError) as caught:
-        TelegramNotifier("SECRET-TOKEN", "1")(COMPANY, job)
+        TelegramNotifier("SECRET-TOKEN", "1")(COMPANY, job, None)
     assert "SECRET-TOKEN" not in str(caught.value)
     assert caught.value.__cause__ is None and caught.value.__suppress_context__
 

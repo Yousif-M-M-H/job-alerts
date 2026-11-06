@@ -1,7 +1,7 @@
 """Parse and validate company config. Fails fast with a clear message."""
 from typing import Any
 
-from .models import Company, TitleLocationFilter
+from .models import DEFAULT_MIN_SCORE, Company, TitleLocationFilter
 
 
 class ConfigError(ValueError):
@@ -32,7 +32,12 @@ def parse_company(raw: dict[str, Any]) -> Company:
     if not isinstance(rules, dict):
         raise ConfigError(f"company '{company_id}': 'filter' must be an object")
 
+    min_score = raw.get("minScore", DEFAULT_MIN_SCORE)
+    if type(min_score) is not int or not 0 <= min_score <= 100:
+        raise ConfigError(f"company '{company_id}': minScore must be a whole number from 0 to 100")
+
     return Company(
+        min_score=min_score,
         id=company_id,
         name=raw["name"],
         ats=raw["ats"],

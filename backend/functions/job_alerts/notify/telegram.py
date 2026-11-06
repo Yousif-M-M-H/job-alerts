@@ -1,15 +1,18 @@
 """Send job alerts through the Telegram Bot API."""
 import requests
 
-from ..models import Company, Job
+from ..models import Company, Job, JobScore
 from .base import NotifyError
 
 API_URL = "https://api.telegram.org/bot{token}/sendMessage"
 TIMEOUT_SECONDS = 20
 
 
-def format_alert(company: Company, job: Job) -> str:
-    return f"{job.title}\n{company.name} · {'; '.join(job.locations)}\n{job.url}"
+def format_alert(company: Company, job: Job, score: JobScore | None) -> str:
+    heading = f"{job.title} · {score.score}%" if score else f"{job.title} · not scored"
+    place = f"{company.name} · {'; '.join(job.locations)}"
+    lines = (heading, place, score.reason, job.url) if score else (heading, place, job.url)
+    return "\n".join(lines)
 
 
 class TelegramNotifier:
@@ -19,8 +22,8 @@ class TelegramNotifier:
         self._token = token
         self._chat_id = chat_id
 
-    def __call__(self, company: Company, job: Job) -> None:
-        body = {"chat_id": self._chat_id, "text": format_alert(company, job)}
+    def __call__(self, company: Company, job: Job, score: JobScore | None) -> None:
+        body = {"chat_id": self._chat_id, "text": format_alert(company, job, score)}
         try:
             response = requests.post(API_URL.format(token=self._token), json=body, timeout=TIMEOUT_SECONDS)
         except requests.RequestException as error:
