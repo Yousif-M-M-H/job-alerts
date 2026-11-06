@@ -1,0 +1,46 @@
+name: Poll job boards
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+# One run at a time, so two runs can't send the same alert or clash on state.
+concurrency:
+  group: poll
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend/functions
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/functions/requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Poll and alert
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m job_alerts.cli
+      # Always save: alerts already sent must stay marked seen even if a later job failed.
+      - name: Save seen jobs
+        if: always()
+        run: |
+          git add state.json
+          git diff --cached --quiet && exit 0
+          git config user.name "job-alerts-bot"
+          git config user.email "job-alerts-bot@users.noreply.github.com"
+          git commit -m "chore: update seen jobs"
+          git pull --rebase
+          git push

@@ -1,0 +1,23 @@
+[
+  {
+    "id": "sel",
+    "name": "Schweitzer Engineering Laboratories",
+    "ats": "workday",
+    "atsConfig": {
+      "host": "selinc.wd1.myworkdayjobs.com",
+      "tenant": "selinc",
+      "site": "SEL"
+    },
+    "filter": {
+      "titleAlways": ["software", "developer", "firmware", "embedded"],
+      "titleInclude": ["engineer"],
+      "titleExclude": [
+        "mechanical", "electrical", "hardware", "power", "protection", "project", "process",
+        "sales", "application", "commissioning", "civil", "welding", "quality", "compliance",
+        "rtl", "vhdl", "proposals", "metering", "integrity"
+      ],
+      "locations": []
+    },
+    "paused": false
+  }
+]
