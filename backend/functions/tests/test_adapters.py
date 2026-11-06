@@ -131,7 +131,7 @@ class _Adapter:
         return (JobSummary("1", "Software Engineer", "Boise", "1"),)
 
     def get_job(self, summary):
-        return Job("1", "x", summary.title, ("Boise",), "https://x.test", self.description)
+        return Job("1", "x", summary.title, ("Boise, ID",), "https://x.test", self.description)
 
 
 COMPANY = Company("x", "X", "workday", {})

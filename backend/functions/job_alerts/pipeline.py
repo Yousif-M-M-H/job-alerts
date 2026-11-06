@@ -3,7 +3,7 @@ import logging
 from collections.abc import Callable
 
 from .adapters.base import Adapter, AdapterError
-from .filters import has_dealbreaker, passes_location, passes_title
+from .filters import has_dealbreaker, is_us_job, passes_location, passes_title
 from .models import Company, Job, JobScore, JobSummary, PollResult
 from .notify.base import Notifier, NotifyError
 from .store.base import Store
@@ -62,7 +62,7 @@ def poll_company(company: Company, adapter: Adapter, store: Store, score_job: Sc
             continue
         try:
             job = adapter.get_job(summary)
-            if not passes_location(job.locations, company.filter):
+            if not is_us_job(job.locations) or not passes_location(job.locations, company.filter):
                 rejected_location.append(summary.id)
                 continue
             if has_dealbreaker(job.description_text):

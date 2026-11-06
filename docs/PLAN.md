@@ -62,6 +62,7 @@ Phase 2 alone is already useful: title and location matches reach the phone befo
 - **Scoring model is Haiku** (`MODEL` in `matching/rerank.py`). The threshold is `minScore` in `companies.json`.
 - **Clearance and sponsorship are hard skips.** A phrase check runs first (free, works if scoring is down), then Claude
   catches other wording. Ability to obtain a clearance later doesn't count on its own.
+- **USA only, for every company.** A job passes if any of its locations is in the US. No stated location also passes.
 - **Tesla and S&C Electric are not included.** Tesla's careers API and S&C's careers page return 403 to automated
   requests, and we don't bypass blocks. S&C's job system wasn't found either.
 - **Itron has two boards**, so a job listed on both could alert twice.
