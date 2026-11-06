@@ -1,4 +1,4 @@
-"""Send job alerts through the Telegram Bot API."""
+"""Send job alerts and health messages through the Telegram Bot API."""
 import requests
 
 from ..models import Company, Job, JobScore
@@ -23,7 +23,10 @@ class TelegramNotifier:
         self._chat_id = chat_id
 
     def __call__(self, company: Company, job: Job, score: JobScore | None) -> None:
-        body = {"chat_id": self._chat_id, "text": format_alert(company, job, score)}
+        self.send_text(format_alert(company, job, score))
+
+    def send_text(self, text: str) -> None:
+        body = {"chat_id": self._chat_id, "text": text}
         try:
             response = requests.post(API_URL.format(token=self._token), json=body, timeout=TIMEOUT_SECONDS)
         except requests.RequestException as error:

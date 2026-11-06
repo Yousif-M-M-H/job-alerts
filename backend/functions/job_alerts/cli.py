@@ -7,13 +7,16 @@ import json
 import logging
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .adapters.base import AdapterError
 from .adapters.registry import build_adapter
 from .config import ConfigError, parse_companies
+from .health import evaluate, load_health, save_health, scoring_status
 from .matching.rerank import ClaudeScorer
 from .models import PollResult
+from .notify.base import NotifyError
 from .notify.telegram import TelegramNotifier
 from .pipeline import Scorer, poll_company
 from .store.json_store import JsonStore
@@ -21,6 +24,7 @@ from .store.json_store import JsonStore
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = ROOT / "companies.json"
 DEFAULT_STATE = ROOT / "state.json"
+DEFAULT_HEALTH = ROOT / "health.json"
 
 
 def _print_result(result: PollResult) -> None:
@@ -55,6 +59,7 @@ def main() -> int:
     parser.add_argument("--company", help="only this company id")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--state", type=Path, default=DEFAULT_STATE)
+    parser.add_argument("--health", type=Path, default=DEFAULT_HEALTH)
     args = parser.parse_args()
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(message)s")
 
@@ -77,18 +82,34 @@ def main() -> int:
 
     store = JsonStore(args.state)
     score_job = _build_scorer()
-    has_failure = False
+    outcomes: dict[str, bool] = {}
+    results: list[PollResult] = []
     for company in selected:
         try:
             result = poll_company(company, build_adapter(company), store, score_job, notify)
         except AdapterError as error:
             # One company failing must not stop the others.
             print(f"\n{company.id}: FAILED: {error}", file=sys.stderr)
-            has_failure = True
+            outcomes[company.id] = False
             continue
         _print_result(result)
-        has_failure = has_failure or bool(result.failed_ids)
-    return 1 if has_failure else 0
+        results.append(result)
+        outcomes[company.id] = not result.failed_ids
+
+    _report_health(args.health, outcomes, tuple(results), notify)
+    return 0 if all(outcomes.values()) else 1
+
+
+def _report_health(path: Path, outcomes: dict[str, bool], results: tuple[PollResult, ...], notify: TelegramNotifier) -> None:
+    """Saves new health only once its messages are sent, so a failed send retries next run."""
+    new_health, messages = evaluate(load_health(path), outcomes, scoring_status(results), datetime.now(timezone.utc))
+    try:
+        for message in messages:
+            notify.send_text(message)
+    except NotifyError as error:
+        print(f"Health message not sent, will retry: {error}", file=sys.stderr)
+        return
+    save_health(path, new_health)
 
 
 if __name__ == "__main__":

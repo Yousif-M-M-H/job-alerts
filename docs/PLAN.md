@@ -56,7 +56,8 @@ Phase 2 alone is already useful: title and location matches reach the phone befo
   (sent, then the state commit fails), which beats never alerting. Phase 2 must change the pipeline, which
   currently marks jobs seen before returning them.
 - **No overlapping runs.** The workflow uses a concurrency group, so two runs can't both alert or clash on state.
-- **A silent failure looks exactly like "no new jobs".** Phase 4 warns after repeated failures.
+- **A silent failure looks exactly like "no new jobs".** Telegram warns after 3 failed checks in a row for a company,
+  and when scoring fails. A daily "still running" message covers the schedule itself: if it stops, the bot stopped.
 - **A new CV or threshold applies to future jobs only.** Old jobs are not re-scored, so nothing re-alerts.
 - **Scoring model is Haiku** (`MODEL` in `matching/rerank.py`). The threshold is `minScore` in `companies.json`.
 - **Clearance and sponsorship are hard skips.** A phrase check runs first (free, works if scoring is down), then Claude

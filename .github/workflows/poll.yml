@@ -39,7 +39,7 @@ jobs:
       - name: Save seen jobs
         if: always()
         run: |
-          git add state.json
+          git add state.json health.json
           git diff --cached --quiet && exit 0
           git config user.name "job-alerts-bot"
           git config user.email "job-alerts-bot@users.noreply.github.com"
