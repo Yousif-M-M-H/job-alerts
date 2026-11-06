@@ -1,5 +1,8 @@
 {
- "failures": {},
+ "failures": {
+  "bcbst": 1,
+  "microsoft": 1
+ },
  "lastDailyMessage": "2026-11-06",
  "scoringWarned": false,
  "warned": []
