@@ -59,6 +59,10 @@ Phase 2 alone is already useful: title and location matches reach the phone befo
 - **A silent failure looks exactly like "no new jobs".** Phase 4 warns after repeated failures.
 - **A new CV or threshold applies to future jobs only.** Old jobs are not re-scored, so nothing re-alerts.
 - **Scoring model is Haiku** (`MODEL` in `matching/rerank.py`). The threshold is `minScore` in `companies.json`.
+- **Clearance and sponsorship are hard skips.** A phrase check runs first (free, works if scoring is down), then Claude
+  catches other wording. Ability to obtain a clearance later doesn't count on its own.
+- **Tesla is not included.** Its careers API returns 403 to automated requests, and we don't bypass blocks.
+- **Microsoft reads only the newest 5 pages** of one "software" search, because the board is huge and rate-limits.
 - **Logs are public.** They show job IDs and scores only, never the CV or the reason.
 
 ## Alert format

@@ -3,7 +3,7 @@ import logging
 from collections.abc import Callable
 
 from .adapters.base import Adapter, AdapterError
-from .filters import passes_location, passes_title
+from .filters import has_dealbreaker, passes_location, passes_title
 from .models import Company, Job, JobScore, JobSummary, PollResult
 from .notify.base import Notifier, NotifyError
 from .store.base import Store
@@ -50,6 +50,7 @@ def poll_company(company: Company, adapter: Adapter, store: Store, score_job: Sc
     new_jobs = _unique_new(summaries, store.seen_ids(company.id))
     rejected_title: list[str] = []
     rejected_location: list[str] = []
+    rejected_dealbreaker: list[str] = []
     rejected_score: list[tuple[str, int]] = []
     candidates: list[Job] = []
     alerted_scores: list[int | None] = []
@@ -64,7 +65,13 @@ def poll_company(company: Company, adapter: Adapter, store: Store, score_job: Sc
             if not passes_location(job.locations, company.filter):
                 rejected_location.append(summary.id)
                 continue
+            if has_dealbreaker(job.description_text):
+                rejected_dealbreaker.append(summary.id)
+                continue
             score = score_job(job)
+            if score is not None and score.is_dealbreaker:
+                rejected_dealbreaker.append(summary.id)
+                continue
             if score is not None and score.score < company.min_score:
                 rejected_score.append((summary.id, score.score))
                 store.mark_seen(company.id, (summary.id,))
@@ -78,7 +85,7 @@ def poll_company(company: Company, adapter: Adapter, store: Store, score_job: Sc
         candidates.append(job)
         alerted_scores.append(score.score if score else None)
 
-    rejected_ids = (*rejected_title, *rejected_location)
+    rejected_ids = (*rejected_title, *rejected_location, *rejected_dealbreaker)
     if rejected_ids:
         store.mark_seen(company.id, rejected_ids)
 
@@ -88,6 +95,7 @@ def poll_company(company: Company, adapter: Adapter, store: Store, score_job: Sc
         new_count=len(new_jobs),
         rejected_title=tuple(rejected_title),
         rejected_location=tuple(rejected_location),
+        rejected_dealbreaker=tuple(rejected_dealbreaker),
         rejected_score=tuple(rejected_score),
         candidates=tuple(candidates),
         alerted_scores=tuple(alerted_scores),

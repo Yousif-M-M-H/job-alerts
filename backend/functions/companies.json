@@ -3,11 +3,7 @@
     "id": "sel",
     "name": "Schweitzer Engineering Laboratories",
     "ats": "workday",
-    "atsConfig": {
-      "host": "selinc.wd1.myworkdayjobs.com",
-      "tenant": "selinc",
-      "site": "SEL"
-    },
+    "atsConfig": { "host": "selinc.wd1.myworkdayjobs.com", "tenant": "selinc", "site": "SEL" },
     "filter": {
       "titleAlways": ["software", "developer", "firmware", "embedded"],
       "titleInclude": ["engineer"],
@@ -16,6 +12,71 @@
         "sales", "application", "commissioning", "civil", "welding", "quality", "compliance",
         "rtl", "vhdl", "proposals", "metering", "integrity"
       ],
+      "locations": []
+    },
+    "minScore": 70,
+    "paused": false
+  },
+  {
+    "id": "microsoft",
+    "name": "Microsoft",
+    "ats": "eightfold",
+    "atsConfig": {
+      "host": "apply.careers.microsoft.com",
+      "domain": "microsoft.com",
+      "query": "software",
+      "maxPages": "5"
+    },
+    "filter": {
+      "titleAlways": ["software", "developer", "firmware", "embedded"],
+      "titleInclude": ["engineer"],
+      "titleExclude": ["sales", "hardware", "mechanical", "electrical", "datacenter", "technician", "solution"],
+      "locations": []
+    },
+    "minScore": 70,
+    "paused": false
+  },
+  {
+    "id": "mesa",
+    "name": "Mesa Associates",
+    "ats": "ukg_pro",
+    "atsConfig": {
+      "host": "recruiting.ultipro.com",
+      "tenant": "MES1006MESA",
+      "board": "f7e05bd0-88f2-4ebc-887b-fe95bcff6ca3"
+    },
+    "filter": {
+      "titleAlways": ["software", "developer", "firmware", "embedded", "programmer"],
+      "titleInclude": ["engineer"],
+      "titleExclude": ["substation", "mechanical", "electrical", "civil", "structural", "project", "transmission", "protection"],
+      "locations": []
+    },
+    "minScore": 70,
+    "paused": false
+  },
+  {
+    "id": "profisee",
+    "name": "Profisee (CBIZ20626 board)",
+    "ats": "ukg_ready",
+    "atsConfig": { "host": "secure5.entertimeonline.com", "companyCode": "CBIZ20626" },
+    "filter": {
+      "titleAlways": ["software", "developer", "firmware", "embedded", "programmer"],
+      "titleInclude": ["engineer"],
+      "titleExclude": ["sales"],
+      "locations": []
+    },
+    "minScore": 70,
+    "paused": false
+  },
+  {
+    "id": "bcbst",
+    "name": "BlueCross BlueShield of Tennessee",
+    "ats": "workday",
+    "atsConfig": { "host": "bcbst.wd1.myworkdayjobs.com", "tenant": "bcbst", "site": "External" },
+    "filter": {
+      "titleAlways": ["software", "developer", "programmer"],
+      "titleInclude": ["engineer"],
+      "titleExclude": ["sales"],
       "locations": []
     },
     "minScore": 70,

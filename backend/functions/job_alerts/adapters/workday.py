@@ -6,58 +6,13 @@ Behaviour seen on the live API:
 - The list can say '2 Locations', so real locations come from the detail call.
 - URL paths can end in '-1', so the stable job ID is the req ID, not the path.
 """
-from html.parser import HTMLParser
 from typing import Any
-
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 
 from ..models import Company, Job, JobSummary
 from .base import AdapterError
+from .http import build_session, fetch_json, html_to_text
 
 PAGE_SIZE = 20
-TIMEOUT_SECONDS = 20
-MAX_RETRIES = 3
-RETRY_BACKOFF_SECONDS = 1.0
-RETRY_STATUSES = (429, 500, 502, 503, 504)
-USER_AGENT = "job-alerts/0.1"
-BLOCK_TAGS = frozenset({"p", "br", "li", "div", "ul", "ol", "h1", "h2", "h3", "h4", "tr"})
-
-
-class _TextExtractor(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
-        self.parts: list[str] = []
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag in BLOCK_TAGS:
-            self.parts.append("\n")
-
-    def handle_data(self, data: str) -> None:
-        self.parts.append(data)
-
-
-def html_to_text(html: str) -> str:
-    extractor = _TextExtractor()
-    extractor.feed(html)
-    lines = (" ".join(line.split()) for line in "".join(extractor.parts).splitlines())
-    return "\n".join(line for line in lines if line)
-
-
-def _build_session() -> requests.Session:
-    # POST is included because this POST is a read-only search.
-    retry = Retry(
-        total=MAX_RETRIES,
-        backoff_factor=RETRY_BACKOFF_SECONDS,
-        status_forcelist=RETRY_STATUSES,
-        allowed_methods=frozenset({"GET", "POST"}),
-        raise_on_status=False,
-    )
-    session = requests.Session()
-    session.mount("https://", HTTPAdapter(max_retries=retry))
-    session.headers.update({"Accept": "application/json", "User-Agent": USER_AGENT})
-    return session
 
 
 def _parse_summary(row: dict[str, Any]) -> JobSummary:
@@ -73,7 +28,7 @@ class WorkdayAdapter:
     def __init__(self, company_id: str, host: str, tenant: str, site: str) -> None:
         self._company_id = company_id
         self._base_url = f"https://{host}/wday/cxs/{tenant}/{site}"
-        self._session = _build_session()
+        self._session = build_session()
 
     @classmethod
     def from_company(cls, company: Company) -> "WorkdayAdapter":
@@ -84,16 +39,7 @@ class WorkdayAdapter:
         return cls(company.id, config["host"], config["tenant"], config["site"])
 
     def _request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
-        url = f"{self._base_url}{path}"
-        try:
-            response = self._session.request(method, url, timeout=TIMEOUT_SECONDS, **kwargs)
-            response.raise_for_status()
-            payload = response.json()
-        except (requests.RequestException, ValueError) as error:
-            raise AdapterError(f"Workday {method} {url} failed: {error}") from error
-        if not isinstance(payload, dict):
-            raise AdapterError(f"Workday {url} returned non-object JSON")
-        return payload
+        return fetch_json(self._session, method, f"{self._base_url}{path}", **kwargs)
 
     def _fetch_page(self, offset: int) -> dict[str, Any]:
         body = {"appliedFacets": {}, "limit": PAGE_SIZE, "offset": offset, "searchText": ""}

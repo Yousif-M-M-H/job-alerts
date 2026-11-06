@@ -188,12 +188,12 @@ JOB = Job("1", "sel", "Dev", ("Boise",), "https://x.test", "text")
 
 
 def test_scorer_returns_parsed_score():
-    response = SimpleNamespace(parsed_output=SimpleNamespace(score=88, reason=" Fits. "), stop_reason="end_turn")
+    response = SimpleNamespace(parsed_output=SimpleNamespace(score=88, reason=" Fits. ", dealbreaker=False), stop_reason="end_turn")
     assert ClaudeScorer("cv", fake_client(lambda **kwargs: response))(JOB) == JobScore(88, "Fits.")
 
 
 @pytest.mark.parametrize(
-    "output", [None, SimpleNamespace(score=101, reason="x"), SimpleNamespace(score=-1, reason="x")]
+    "output", [None, SimpleNamespace(score=101, reason="x", dealbreaker=False), SimpleNamespace(score=-1, reason="x", dealbreaker=False)]
 )
 def test_scorer_returns_none_for_unusable_output(output):
     response = SimpleNamespace(parsed_output=output, stop_reason="refusal")

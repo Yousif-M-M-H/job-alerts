@@ -5,6 +5,24 @@ from collections.abc import Iterable
 from .models import TitleLocationFilter
 
 
+# Clear statements that a job needs an active clearance or won't sponsor. Free, and works
+# when scoring is down. Claude catches other wording (see matching/rerank.py).
+# "Ability to obtain a clearance" is deliberately not matched here.
+_DEALBREAKER_PATTERNS = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"\b(?:active|current)\s+(?:[\w/-]+\s+){0,4}?clearance\b",
+        r"\b(?:not|n['’]t|unable to|cannot|no)\s+(?:[\w-]+\s+){0,4}?sponsor",
+        r"\bwithout\s+(?:[\w-]+\s+){0,3}?sponsor",
+        r"\bsponsorship\s+(?:[\w-]+\s+){0,3}?(?:not|unavailable)\b",
+    )
+)
+
+
+def has_dealbreaker(description: str) -> bool:
+    return any(pattern.search(description) for pattern in _DEALBREAKER_PATTERNS)
+
+
 def _has_term(text: str, terms: Iterable[str]) -> bool:
     """Whole-word match, so 'engineer' does not match 'Engineering Support'."""
     return any(re.search(rf"\b{re.escape(term)}\b", text, re.IGNORECASE) for term in terms)

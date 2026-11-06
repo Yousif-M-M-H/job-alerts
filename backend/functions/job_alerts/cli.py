@@ -31,6 +31,7 @@ def _print_result(result: PollResult) -> None:
     print(
         f"  new {result.new_count}, alerted {len(result.candidates)}, rejected by title "
         f"{len(result.rejected_title)}, by location {len(result.rejected_location)}, "
+        f"by clearance/sponsorship {len(result.rejected_dealbreaker)}, "
         f"by score {len(result.rejected_score)}, failed {len(result.failed_ids)}"
     )
     # Workflow logs are public: IDs and scores only, never the reason.

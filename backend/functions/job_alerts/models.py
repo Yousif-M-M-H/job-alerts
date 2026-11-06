@@ -52,6 +52,7 @@ class Job:
 class JobScore:
     score: int
     reason: str
+    is_dealbreaker: bool = False
 
 
 @dataclass(frozen=True)
@@ -62,6 +63,7 @@ class PollResult:
     new_count: int = 0
     rejected_title: tuple[str, ...] = ()
     rejected_location: tuple[str, ...] = ()
+    rejected_dealbreaker: tuple[str, ...] = ()
     rejected_score: tuple[tuple[str, int], ...] = ()
     candidates: tuple[Job, ...] = ()
     alerted_scores: tuple[int | None, ...] = ()
