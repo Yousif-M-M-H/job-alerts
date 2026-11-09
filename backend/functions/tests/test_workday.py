@@ -38,6 +38,12 @@ def test_list_uses_req_id_not_url_path(monkeypatch):
     assert adapter.list_jobs()[0].id == "2026-7"
 
 
+def test_list_skips_half_published_row(monkeypatch):
+    broken = {"bulletFields": ["2026-24646"]}
+    adapter = adapter_with_pages(monkeypatch, [{"total": 2, "jobPostings": [row(7), broken]}])
+    assert [job.id for job in adapter.list_jobs()] == ["2026-7"]
+
+
 def test_list_raises_rather_than_returning_partial_results(monkeypatch):
     adapter = adapter_with_pages(
         monkeypatch,
