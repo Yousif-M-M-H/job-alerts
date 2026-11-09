@@ -1,6 +1,8 @@
 {
- "failures": {},
- "lastDailyMessage": "2026-11-08",
+ "failures": {
+  "sel": 1
+ },
+ "lastDailyMessage": "2026-11-09",
  "scoringWarned": false,
  "warned": []
 }
