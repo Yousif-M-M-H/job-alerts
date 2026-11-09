@@ -14,7 +14,7 @@
       ],
       "locations": []
     },
-    "minScore": 70,
+    "minScore": 60,
     "paused": false
   },
   {
@@ -33,7 +33,7 @@
       "titleExclude": ["sales", "hardware", "mechanical", "electrical", "datacenter", "technician", "solution"],
       "locations": []
     },
-    "minScore": 70,
+    "minScore": 60,
     "paused": false
   },
   {
@@ -51,7 +51,7 @@
       "titleExclude": ["substation", "mechanical", "electrical", "civil", "structural", "project", "transmission", "protection"],
       "locations": []
     },
-    "minScore": 70,
+    "minScore": 60,
     "paused": false
   },
   {
@@ -65,7 +65,7 @@
       "titleExclude": ["sales"],
       "locations": []
     },
-    "minScore": 70,
+    "minScore": 60,
     "paused": false
   },
   {
@@ -79,7 +79,7 @@
       "titleExclude": ["sales", "hardware", "mechanical", "electrical", "manufacturing", "quality", "process"],
       "locations": []
     },
-    "minScore": 70,
+    "minScore": 60,
     "paused": false
   },
   {
@@ -93,7 +93,7 @@
       "titleExclude": ["sales", "civil", "structural", "geotechnical", "mechanical"],
       "locations": []
     },
-    "minScore": 70,
+    "minScore": 60,
     "paused": false
   },
   {
@@ -107,7 +107,7 @@
       "titleExclude": ["sales", "hardware", "mechanical", "electrical", "manufacturing", "quality"],
       "locations": []
     },
-    "minScore": 70,
+    "minScore": 60,
     "paused": false
   },
   {
@@ -121,7 +121,7 @@
       "titleExclude": ["sales", "hardware", "mechanical", "electrical", "manufacturing", "quality"],
       "locations": []
     },
-    "minScore": 70,
+    "minScore": 60,
     "paused": false
   },
   {
@@ -135,7 +135,7 @@
       "titleExclude": ["sales"],
       "locations": []
     },
-    "minScore": 70,
+    "minScore": 60,
     "paused": false
   }
 ]

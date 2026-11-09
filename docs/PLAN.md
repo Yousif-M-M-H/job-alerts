@@ -14,7 +14,7 @@ about every 5 min, per unpaused company:
   adapter.get_details()          only for jobs that passed the title filter
   cheap filter (location)        after details: the list can say "2 Locations"
   LLM score against CV           0-100 + one-line reason
-  score >= threshold             Telegram alert with apply link
+  score >= threshold (60)             Telegram alert with apply link
   mark seen                      only after the alert was sent
 ```
 
