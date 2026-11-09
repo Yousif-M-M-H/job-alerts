@@ -5,6 +5,7 @@ Behaviour seen on the live API:
 - 'total' is only filled on the first page; later pages say 0.
 - The list can say '2 Locations', so real locations come from the detail call.
 - URL paths can end in '-1', so the stable job ID is the req ID, not the path.
+- Optional atsConfig 'searchText' narrows huge boards (Caterpillar: 999+ jobs, ~344 for 'software').
 """
 import logging
 from typing import Any
@@ -29,8 +30,9 @@ def _parse_summary(row: dict[str, Any]) -> JobSummary | None:
 
 
 class WorkdayAdapter:
-    def __init__(self, company_id: str, host: str, tenant: str, site: str) -> None:
+    def __init__(self, company_id: str, host: str, tenant: str, site: str, search_text: str = "") -> None:
         self._company_id = company_id
+        self._search_text = search_text
         self._base_url = f"https://{host}/wday/cxs/{tenant}/{site}"
         self._session = build_session()
 
@@ -40,13 +42,13 @@ class WorkdayAdapter:
         missing = [key for key in ("host", "tenant", "site") if not config.get(key)]
         if missing:
             raise AdapterError(f"company '{company.id}': atsConfig is missing {missing}")
-        return cls(company.id, config["host"], config["tenant"], config["site"])
+        return cls(company.id, config["host"], config["tenant"], config["site"], config.get("searchText", ""))
 
     def _request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
         return fetch_json(self._session, method, f"{self._base_url}{path}", **kwargs)
 
     def _fetch_page(self, offset: int) -> dict[str, Any]:
-        body = {"appliedFacets": {}, "limit": PAGE_SIZE, "offset": offset, "searchText": ""}
+        body = {"appliedFacets": {}, "limit": PAGE_SIZE, "offset": offset, "searchText": self._search_text}
         payload = self._request("POST", "/jobs", json=body)
         if not isinstance(payload.get("jobPostings"), list):
             raise AdapterError(f"Workday page at offset {offset} has no jobPostings list")

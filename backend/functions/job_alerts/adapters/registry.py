@@ -4,6 +4,7 @@ from collections.abc import Callable
 from ..models import Company
 from .base import Adapter, AdapterError
 from .eightfold import EightfoldAdapter
+from .jobsyn import JobsynAdapter
 from .successfactors import SuccessFactorsAdapter
 from .ukg_pro import UkgProAdapter
 from .ukg_ready import UkgReadyAdapter
@@ -15,6 +16,7 @@ _FACTORIES: dict[str, Callable[[Company], Adapter]] = {
     "ukg_pro": UkgProAdapter.from_company,
     "ukg_ready": UkgReadyAdapter.from_company,
     "successfactors": SuccessFactorsAdapter.from_company,
+    "jobsyn": JobsynAdapter.from_company,
 }
 
 

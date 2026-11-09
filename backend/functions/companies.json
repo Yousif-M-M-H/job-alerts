@@ -3,14 +3,41 @@
     "id": "sel",
     "name": "Schweitzer Engineering Laboratories",
     "ats": "workday",
-    "atsConfig": { "host": "selinc.wd1.myworkdayjobs.com", "tenant": "selinc", "site": "SEL" },
+    "atsConfig": {
+      "host": "selinc.wd1.myworkdayjobs.com",
+      "tenant": "selinc",
+      "site": "SEL"
+    },
     "filter": {
-      "titleAlways": ["software", "developer", "firmware", "embedded"],
-      "titleInclude": ["engineer"],
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
       "titleExclude": [
-        "mechanical", "electrical", "hardware", "power", "protection", "project", "process",
-        "sales", "application", "commissioning", "civil", "welding", "quality", "compliance",
-        "rtl", "vhdl", "proposals", "metering", "integrity"
+        "mechanical",
+        "electrical",
+        "hardware",
+        "power",
+        "protection",
+        "project",
+        "process",
+        "sales",
+        "application",
+        "commissioning",
+        "civil",
+        "welding",
+        "quality",
+        "compliance",
+        "rtl",
+        "vhdl",
+        "proposals",
+        "metering",
+        "integrity"
       ],
       "locations": []
     },
@@ -28,9 +55,24 @@
       "maxPages": "5"
     },
     "filter": {
-      "titleAlways": ["software", "developer", "firmware", "embedded"],
-      "titleInclude": ["engineer"],
-      "titleExclude": ["sales", "hardware", "mechanical", "electrical", "datacenter", "technician", "solution"],
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "sales",
+        "hardware",
+        "mechanical",
+        "electrical",
+        "datacenter",
+        "technician",
+        "solution"
+      ],
       "locations": []
     },
     "minScore": 60,
@@ -46,9 +88,26 @@
       "board": "f7e05bd0-88f2-4ebc-887b-fe95bcff6ca3"
     },
     "filter": {
-      "titleAlways": ["software", "developer", "firmware", "embedded", "programmer"],
-      "titleInclude": ["engineer"],
-      "titleExclude": ["substation", "mechanical", "electrical", "civil", "structural", "project", "transmission", "protection"],
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded",
+        "programmer"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "substation",
+        "mechanical",
+        "electrical",
+        "civil",
+        "structural",
+        "project",
+        "transmission",
+        "protection"
+      ],
       "locations": []
     },
     "minScore": 60,
@@ -58,11 +117,24 @@
     "id": "profisee",
     "name": "Profisee (CBIZ20626 board)",
     "ats": "ukg_ready",
-    "atsConfig": { "host": "secure5.entertimeonline.com", "companyCode": "CBIZ20626" },
+    "atsConfig": {
+      "host": "secure5.entertimeonline.com",
+      "companyCode": "CBIZ20626"
+    },
     "filter": {
-      "titleAlways": ["software", "developer", "firmware", "embedded", "programmer"],
-      "titleInclude": ["engineer"],
-      "titleExclude": ["sales"],
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded",
+        "programmer"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "sales"
+      ],
       "locations": []
     },
     "minScore": 60,
@@ -72,11 +144,28 @@
     "id": "landisgyr",
     "name": "Landis+Gyr",
     "ats": "successfactors",
-    "atsConfig": { "host": "careers.landisgyr.com" },
+    "atsConfig": {
+      "host": "careers.landisgyr.com"
+    },
     "filter": {
-      "titleAlways": ["software", "developer", "firmware", "embedded"],
-      "titleInclude": ["engineer"],
-      "titleExclude": ["sales", "hardware", "mechanical", "electrical", "manufacturing", "quality", "process"],
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "sales",
+        "hardware",
+        "mechanical",
+        "electrical",
+        "manufacturing",
+        "quality",
+        "process"
+      ],
       "locations": []
     },
     "minScore": 60,
@@ -86,11 +175,27 @@
     "id": "bentley",
     "name": "Bentley Systems",
     "ats": "workday",
-    "atsConfig": { "host": "bentleysystems.wd5.myworkdayjobs.com", "tenant": "bentleysystems", "site": "bentley" },
+    "atsConfig": {
+      "host": "bentleysystems.wd5.myworkdayjobs.com",
+      "tenant": "bentleysystems",
+      "site": "bentley"
+    },
     "filter": {
-      "titleAlways": ["software", "developer", "programmer"],
-      "titleInclude": ["engineer"],
-      "titleExclude": ["sales", "civil", "structural", "geotechnical", "mechanical"],
+      "titleAlways": [
+        "software",
+        "developer",
+        "programmer"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "sales",
+        "civil",
+        "structural",
+        "geotechnical",
+        "mechanical"
+      ],
       "locations": []
     },
     "minScore": 60,
@@ -100,11 +205,29 @@
     "id": "itron",
     "name": "Itron",
     "ats": "workday",
-    "atsConfig": { "host": "itron.wd5.myworkdayjobs.com", "tenant": "itron", "site": "Itron" },
+    "atsConfig": {
+      "host": "itron.wd5.myworkdayjobs.com",
+      "tenant": "itron",
+      "site": "Itron"
+    },
     "filter": {
-      "titleAlways": ["software", "developer", "firmware", "embedded"],
-      "titleInclude": ["engineer"],
-      "titleExclude": ["sales", "hardware", "mechanical", "electrical", "manufacturing", "quality"],
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "sales",
+        "hardware",
+        "mechanical",
+        "electrical",
+        "manufacturing",
+        "quality"
+      ],
       "locations": []
     },
     "minScore": 60,
@@ -114,11 +237,30 @@
     "id": "itron_early",
     "name": "Itron (Early Careers)",
     "ats": "workday",
-    "atsConfig": { "host": "itron.wd5.myworkdayjobs.com", "tenant": "itron", "site": "Early_Careers" },
+    "atsConfig": {
+      "host": "itron.wd5.myworkdayjobs.com",
+      "tenant": "itron",
+      "site": "Early_Careers"
+    },
     "filter": {
-      "titleAlways": ["software", "developer", "firmware", "embedded", "data"],
-      "titleInclude": ["engineer"],
-      "titleExclude": ["sales", "hardware", "mechanical", "electrical", "manufacturing", "quality"],
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded",
+        "data"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "sales",
+        "hardware",
+        "mechanical",
+        "electrical",
+        "manufacturing",
+        "quality"
+      ],
       "locations": []
     },
     "minScore": 60,
@@ -128,11 +270,92 @@
     "id": "bcbst",
     "name": "BlueCross BlueShield of Tennessee",
     "ats": "workday",
-    "atsConfig": { "host": "bcbst.wd1.myworkdayjobs.com", "tenant": "bcbst", "site": "External" },
+    "atsConfig": {
+      "host": "bcbst.wd1.myworkdayjobs.com",
+      "tenant": "bcbst",
+      "site": "External"
+    },
     "filter": {
-      "titleAlways": ["software", "developer", "programmer"],
-      "titleInclude": ["engineer"],
-      "titleExclude": ["sales"],
+      "titleAlways": [
+        "software",
+        "developer",
+        "programmer"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "sales"
+      ],
+      "locations": []
+    },
+    "minScore": 60,
+    "paused": false
+  },
+  {
+    "id": "caterpillar",
+    "name": "Caterpillar",
+    "ats": "workday",
+    "atsConfig": {
+      "host": "cat.wd5.myworkdayjobs.com",
+      "tenant": "cat",
+      "site": "CaterpillarCareers",
+      "searchText": "software"
+    },
+    "filter": {
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "mechanical",
+        "electrical",
+        "hardware",
+        "sales",
+        "civil",
+        "manufacturing",
+        "quality",
+        "manager",
+        "director"
+      ],
+      "locations": []
+    },
+    "minScore": 60,
+    "paused": false
+  },
+  {
+    "id": "alaska",
+    "name": "Alaska Airlines",
+    "ats": "jobsyn",
+    "atsConfig": {
+      "site": "careers.alaskaair.com"
+    },
+    "filter": {
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "mechanical",
+        "electrical",
+        "hardware",
+        "sales",
+        "civil",
+        "manufacturing",
+        "quality",
+        "manager",
+        "director"
+      ],
       "locations": []
     },
     "minScore": 60,

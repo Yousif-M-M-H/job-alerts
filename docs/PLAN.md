@@ -65,6 +65,7 @@ Phase 2 alone is already useful: title and location matches reach the phone befo
 - **USA only, for every company.** A job passes if any of its locations is in the US. No stated location also passes.
 - **Tesla and S&C Electric are not included.** Tesla's careers API and S&C's careers page return 403 to automated
   requests, and we don't bypass blocks. S&C's job system wasn't found either.
+- **Caterpillar reads only a "software" search** (the full board is 999+ jobs, mostly plant roles). **Alaska Airlines** uses the DirectEmployers site, which also lists Horizon and Hawaiian jobs.
 - **Itron has two boards**, so a job listed on both could alert twice.
 - **Microsoft reads only the newest 5 pages** of one "software" search, because the board is huge and rate-limits.
 - **Logs are public.** They show job IDs and scores only, never the CV or the reason.

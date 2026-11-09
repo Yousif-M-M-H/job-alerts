@@ -164,3 +164,34 @@ def test_failed_scoring_still_applies_phrase_check(tmp_path):
     assert alerts == []
 
 
+
+
+def test_jobsyn_reads_featured_jobs_and_builds_short_link(monkeypatch):
+    from job_alerts.adapters.jobsyn import JobsynAdapter
+
+    def row(n, company="Alaska Airlines"):
+        return {"guid": f"G{n}", "title_exact": f"Software Engineer {n}", "location_exact": "Seatac, WA",
+                "country_exact": "United States", "company_exact": company, "description": "desc"}
+
+    pages = {
+        1: {"jobs": [row(1)], "featured_jobs": [row(2)], "pagination": {"total": 3, "total_pages": 2}},
+        2: {"jobs": [row(3, "Horizon Air"), row(1)], "pagination": {"total": 3, "total_pages": 2}},
+    }
+    monkeypatch.setattr("job_alerts.adapters.jobsyn.fetch_json", lambda s, m, u, params, headers: pages[params["page"]])
+    adapter = JobsynAdapter("alaska", "careers.alaskaair.com")
+    summaries = adapter.list_jobs()
+    assert [s.id for s in summaries] == ["G1", "G2", "G3"]
+    job = adapter.get_job(summaries[2])
+    assert job.url == "https://careers.alaskaair.com/G3/job/" and job.title.endswith("(Horizon Air)")
+    assert job.locations == ("Seatac, WA, United States",)
+
+
+def test_jobsyn_raises_on_short_list(monkeypatch):
+    from job_alerts.adapters.base import AdapterError
+    from job_alerts.adapters.jobsyn import JobsynAdapter
+
+    page = {"jobs": [], "pagination": {"total": 5, "total_pages": 1}}
+    monkeypatch.setattr("job_alerts.adapters.jobsyn.fetch_json", lambda *a, **k: page)
+    import pytest
+    with pytest.raises(AdapterError):
+        JobsynAdapter("alaska", "careers.alaskaair.com").list_jobs()
