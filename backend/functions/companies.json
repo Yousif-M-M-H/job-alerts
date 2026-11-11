@@ -360,5 +360,40 @@
     },
     "minScore": 60,
     "paused": false
+  },
+  {
+    "id": "asurion",
+    "name": "Asurion",
+    "ats": "workday",
+    "atsConfig": {
+      "host": "asurion.wd5.myworkdayjobs.com",
+      "tenant": "asurion",
+      "site": "Asurion_Careers"
+    },
+    "filter": {
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "mechanical",
+        "electrical",
+        "hardware",
+        "sales",
+        "civil",
+        "manufacturing",
+        "quality",
+        "manager",
+        "director"
+      ],
+      "locations": []
+    },
+    "minScore": 60,
+    "paused": false
   }
 ]
