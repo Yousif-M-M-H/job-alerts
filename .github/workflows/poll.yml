@@ -22,6 +22,9 @@ jobs:
         working-directory: backend/functions
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Latest main, not the commit at trigger time: a queued run must see the state the run before it saved.
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
