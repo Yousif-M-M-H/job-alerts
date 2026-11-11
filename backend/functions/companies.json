@@ -396,5 +396,41 @@
     },
     "minScore": 60,
     "paused": false
+  },
+  {
+    "id": "abb",
+    "name": "ABB",
+    "ats": "workday",
+    "atsConfig": {
+      "host": "abb.wd3.myworkdayjobs.com",
+      "tenant": "abb",
+      "site": "External_Career_Page",
+      "searchText": "software"
+    },
+    "filter": {
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "mechanical",
+        "electrical",
+        "hardware",
+        "sales",
+        "civil",
+        "manufacturing",
+        "quality",
+        "manager",
+        "director"
+      ],
+      "locations": []
+    },
+    "minScore": 60,
+    "paused": false
   }
 ]
