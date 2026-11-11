@@ -47,6 +47,9 @@ Phase 2 alone is already useful: title and location matches reach the phone befo
 - **Hosting is a public repo.** Public repos get unlimited Actions minutes. A private repo's free minutes cover
   about every 30 min, not every 5. Only code, job IDs and the watch list are public. The CV text and bot token
   stay in encrypted secrets, and must never be printed to logs.
+- **cron-job.org starts the bot every 5 minutes** (POST to the workflow's dispatches API with a fine-grained token
+  from Yousif-M-M-H, only job-alerts, Actions: read and write). The token expires 2027-02-09: renew it and update
+  the Authorization header on cron-job.org, or runs fall back to GitHub's slow schedule.
 - **GitHub schedules can run late.** Runs can start several minutes late or be skipped when GitHub is busy. If
   that costs too much speed, move the same code to a small always-on server (about $5/month) with a 1-2 min
   poll. Nothing else changes.
