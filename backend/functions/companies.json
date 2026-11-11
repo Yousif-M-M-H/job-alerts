@@ -76,7 +76,8 @@
       "locations": []
     },
     "minScore": 60,
-    "paused": false
+    "paused": false,
+    "checkEveryMinutes": 15
   },
   {
     "id": "mesa",

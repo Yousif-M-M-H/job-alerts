@@ -13,7 +13,7 @@ from pathlib import Path
 from .adapters.base import AdapterError
 from .adapters.registry import build_adapter
 from .config import ConfigError, parse_companies
-from .health import evaluate, load_health, save_health, scoring_status
+from .health import evaluate, is_due, load_health, save_health, scoring_status
 from .matching.rerank import ClaudeScorer
 from .models import PollResult
 from .notify.base import NotifyError
@@ -80,11 +80,19 @@ def main() -> int:
         print("No matching unpaused company.", file=sys.stderr)
         return 2
 
+    # An explicit --company always runs; otherwise companies with checkEveryMinutes wait their turn.
+    now = datetime.now(timezone.utc)
+    health = load_health(args.health)
+    due = [c for c in selected if args.company or is_due(c, health, now)]
+    for company in selected:
+        if company not in due:
+            print(f"\n{company.id}: skipped, checked less than {company.check_every_minutes} min ago")
+
     store = JsonStore(args.state)
     score_job = _build_scorer()
     outcomes: dict[str, bool] = {}
     results: list[PollResult] = []
-    for company in selected:
+    for company in due:
         try:
             result = poll_company(company, build_adapter(company), store, score_job, notify)
         except AdapterError as error:
@@ -96,13 +104,17 @@ def main() -> int:
         results.append(result)
         outcomes[company.id] = not result.failed_ids
 
-    _report_health(args.health, outcomes, tuple(results), notify)
+    _report_health(args.health, health, outcomes, tuple(results), notify, board_count=len(selected))
     return 0 if all(outcomes.values()) else 1
 
 
-def _report_health(path: Path, outcomes: dict[str, bool], results: tuple[PollResult, ...], notify: TelegramNotifier) -> None:
+def _report_health(
+    path: Path, health: dict, outcomes: dict[str, bool], results: tuple[PollResult, ...],
+    notify: TelegramNotifier, board_count: int,
+) -> None:
     """Saves new health only once its messages are sent, so a failed send retries next run."""
-    new_health, messages = evaluate(load_health(path), outcomes, scoring_status(results), datetime.now(timezone.utc))
+    now = datetime.now(timezone.utc)
+    new_health, messages = evaluate(health, outcomes, scoring_status(results), now, board_count)
     try:
         for message in messages:
             notify.send_text(message)

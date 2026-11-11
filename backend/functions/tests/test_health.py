@@ -79,3 +79,31 @@ def test_daily_message_names_problems():
     health = {"lastDailyMessage": "2026-11-05", "warned": ["sel"], "failures": {"sel": 5}}
     _, messages = run(health, {"sel": False})
     assert "Problems: sel" in messages[0]
+
+
+def test_interval_company_waits_its_turn():
+    from datetime import timedelta
+    from job_alerts.health import is_due
+    from job_alerts.models import Company
+
+    msft = Company("microsoft", "Microsoft", "eightfold", {}, check_every_minutes=15)
+    health = {"lastChecked": {"microsoft": MORNING.isoformat()}}
+    assert not is_due(msft, health, MORNING + timedelta(minutes=10))
+    assert is_due(msft, health, MORNING + timedelta(minutes=14))  # 2 min slack for late starts
+    assert is_due(msft, {}, MORNING)
+    assert is_due(Company("sel", "SEL", "workday", {}), health, MORNING)
+
+
+def test_skipped_company_keeps_failure_count_and_board_count():
+    health = {**SETTLED, "failures": {"microsoft": 2}}
+    health, _ = run(health, {"sel": True})
+    assert health["failures"] == {"microsoft": 2}
+    _, messages = evaluate(health, {"microsoft": False}, FINE, MORNING)
+    assert "microsoft" in messages[0]
+    _, daily = evaluate({"lastDailyMessage": "2026-11-05"}, {"sel": True}, FINE, MORNING, board_count=12)
+    assert "watching 12 boards" in daily[0]
+
+
+def test_checked_companies_are_stamped():
+    health, _ = run(SETTLED, {"sel": True})
+    assert health["lastChecked"] == {"sel": MORNING.isoformat()}

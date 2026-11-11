@@ -7,14 +7,15 @@ if it stops arriving, the bot has stopped running.
 import json
 import os
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from .models import PollResult
+from .models import Company, PollResult
 
 FAILURES_BEFORE_WARNING = 3
 DAILY_MESSAGE_HOUR_UTC = 13  # About 8-9 am in Chattanooga.
+INTERVAL_SLACK_MINUTES = 2  # Runs start a little late, so a 15-minute company isn't pushed to 20.
 
 
 @dataclass(frozen=True)
@@ -36,7 +37,8 @@ def scoring_status(results: tuple[PollResult, ...]) -> ScoringStatus:
 def _update_companies(health: dict[str, Any], outcomes: dict[str, bool]) -> tuple[dict[str, int], list[str], list[str]]:
     old_failures: dict[str, int] = health.get("failures", {})
     warned = set(health.get("warned", []))
-    failures: dict[str, int] = {}
+    # Companies skipped this run keep their count, so their 3-in-a-row warning still works.
+    failures = {cid: count for cid, count in old_failures.items() if cid not in outcomes}
     messages: list[str] = []
     for company_id, is_ok in outcomes.items():
         if is_ok:
@@ -75,20 +77,33 @@ def _daily_message(last_sent: str, now: datetime, board_count: int, warned: list
 
 
 def evaluate(
-    health: dict[str, Any], outcomes: dict[str, bool], status: ScoringStatus, now: datetime
+    health: dict[str, Any], outcomes: dict[str, bool], status: ScoringStatus, now: datetime,
+    board_count: int | None = None,
 ) -> tuple[dict[str, Any], tuple[str, ...]]:
     """Returns the new health and the messages to send."""
     failures, warned, company_messages = _update_companies(health, outcomes)
     scoring_warned, scoring_messages = _update_scoring(bool(health.get("scoringWarned")), status)
     last_sent = health.get("lastDailyMessage", "")
-    daily = _daily_message(last_sent, now, len(outcomes), warned)
+    daily = _daily_message(last_sent, now, len(outcomes) if board_count is None else board_count, warned)
     new_health = {
         "failures": failures,
         "warned": warned,
         "scoringWarned": scoring_warned,
         "lastDailyMessage": now.date().isoformat() if daily else last_sent,
+        "lastChecked": {**health.get("lastChecked", {}), **{cid: now.isoformat() for cid in outcomes}},
     }
     return new_health, (*company_messages, *scoring_messages, *daily)
+
+
+def is_due(company: Company, health: dict[str, Any], now: datetime) -> bool:
+    """A company with checkEveryMinutes is skipped until that long has passed since its last check."""
+    if not company.check_every_minutes:
+        return True
+    last = health.get("lastChecked", {}).get(company.id)
+    if not last:
+        return True
+    waited = now - datetime.fromisoformat(last)
+    return waited >= timedelta(minutes=company.check_every_minutes - INTERVAL_SLACK_MINUTES)
 
 
 def load_health(path: Path) -> dict[str, Any]:

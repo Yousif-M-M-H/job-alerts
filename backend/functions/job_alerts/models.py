@@ -23,6 +23,7 @@ class Company:
     filter: TitleLocationFilter = field(default_factory=TitleLocationFilter)
     is_paused: bool = False
     min_score: int = DEFAULT_MIN_SCORE
+    check_every_minutes: int = 0  # 0 = every run
 
 
 @dataclass(frozen=True)

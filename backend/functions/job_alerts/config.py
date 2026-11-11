@@ -36,8 +36,13 @@ def parse_company(raw: dict[str, Any]) -> Company:
     if type(min_score) is not int or not 0 <= min_score <= 100:
         raise ConfigError(f"company '{company_id}': minScore must be a whole number from 0 to 100")
 
+    every = raw.get("checkEveryMinutes", 0)
+    if type(every) is not int or not 0 <= every <= 1440:
+        raise ConfigError(f"company '{company_id}': checkEveryMinutes must be a whole number from 0 to 1440")
+
     return Company(
         min_score=min_score,
+        check_every_minutes=every,
         id=company_id,
         name=raw["name"],
         ats=raw["ats"],
