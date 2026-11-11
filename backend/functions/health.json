@@ -1,8 +1,10 @@
 {
  "failures": {
-  "microsoft": 2
+  "microsoft": 3
  },
  "lastDailyMessage": "2026-11-11",
  "scoringWarned": false,
- "warned": []
+ "warned": [
+  "microsoft"
+ ]
 }
