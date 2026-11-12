@@ -3,9 +3,12 @@ from collections.abc import Callable
 
 from ..models import Company
 from .base import Adapter, AdapterError
+from .ashby import AshbyAdapter
 from .eightfold import EightfoldAdapter
+from .greenhouse import GreenhouseAdapter
 from .icims import IcimsAdapter
 from .jobsyn import JobsynAdapter
+from .lever import LeverAdapter
 from .successfactors import SuccessFactorsAdapter
 from .ukg_pro import UkgProAdapter
 from .ukg_ready import UkgReadyAdapter
@@ -19,6 +22,9 @@ _FACTORIES: dict[str, Callable[[Company], Adapter]] = {
     "successfactors": SuccessFactorsAdapter.from_company,
     "jobsyn": JobsynAdapter.from_company,
     "icims": IcimsAdapter.from_company,
+    "greenhouse": GreenhouseAdapter.from_company,
+    "lever": LeverAdapter.from_company,
+    "ashby": AshbyAdapter.from_company,
 }
 
 

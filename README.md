@@ -48,7 +48,20 @@ Epic Systems (only ~15 permanent role pages, nothing new to alert on).
 
 ## Adding a company
 
-1. Find its job system. Most are Workday: try
+1. Find its job system. The easiest are **Greenhouse, Lever and Ashby** (one public API call, no scraping):
+   look at the apply link on the careers page and copy the board name from it, then use
+   `"ats": "greenhouse"` / `"lever"` / `"ashby"` with `"atsConfig": {"board": "<name>"}`.
+
+   | Apply link looks like | ats | board |
+   |---|---|---|
+   | `boards.greenhouse.io/stripe` or `?gh_jid=` | greenhouse | `stripe` |
+   | `jobs.lever.co/palantir/...` | lever | `palantir` |
+   | `jobs.ashbyhq.com/ramp/...` | ashby | `ramp` |
+
+   Check a board name works: `curl -s https://boards-api.greenhouse.io/v1/boards/<name>/jobs | head -c 200`
+   (Lever: `https://api.lever.co/v0/postings/<name>`, Ashby: `https://api.ashbyhq.com/posting-api/job-board/<name>`).
+
+   Otherwise, it is often Workday: try
    `POST https://<host>/wday/cxs/<tenant>/<site>/jobs` with `{"appliedFacets":{},"limit":20,"offset":0,"searchText":""}`.
    The `<host>/<site>` usually shows up in the apply links on the careers page.
 2. Add an entry to `companies.json` (copy the caterpillar entry for its software title filter). Add `searchText`

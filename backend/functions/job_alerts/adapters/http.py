@@ -64,12 +64,17 @@ def fetch(session: requests.Session, method: str, url: str, **kwargs: Any) -> re
     return response
 
 
-def fetch_json(session: requests.Session, method: str, url: str, **kwargs: Any) -> dict[str, Any]:
+def fetch_json_value(session: requests.Session, method: str, url: str, **kwargs: Any) -> Any:
+    """Any JSON value (object or list); callers check the shape."""
     response = fetch(session, method, url, **kwargs)
     try:
-        payload = response.json()
+        return response.json()
     except ValueError as error:
         raise AdapterError(f"{method} {url} did not return JSON") from error
+
+
+def fetch_json(session: requests.Session, method: str, url: str, **kwargs: Any) -> dict[str, Any]:
+    payload = fetch_json_value(session, method, url, **kwargs)
     if not isinstance(payload, dict):
         raise AdapterError(f"{method} {url} returned non-object JSON")
     return payload
