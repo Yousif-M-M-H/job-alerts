@@ -22,12 +22,12 @@ cron-job.org (every 5 min) -> GitHub Actions (.github/workflows/poll.yml) -> pyt
 - **Health messages on Telegram:** a warning after 3 failed checks in a row for a company (and a "working again"
   message), a warning if scoring fails, and a daily "🟢 still running" message after 13:00 UTC.
 
-## Companies watched (12, `backend/functions/companies.json`)
+## Companies watched (13, `backend/functions/companies.json`)
 
 | id | Company | ATS adapter | Notes |
 |---|---|---|---|
 | sel | Schweitzer Engineering Labs | workday | |
-| microsoft | Microsoft | eightfold | newest 5 pages of "software"; `checkEveryMinutes: 15` (rate limits at 5 min) |
+| microsoft | Microsoft | eightfold | newest 5 pages of "software"; `checkEveryMinutes: 15`; still rate-limits now and then (see below) |
 | mesa | Mesa | ukg_pro | |
 | profisee | Profisee (the CBIZ20626 board) | ukg_ready | |
 | landisgyr | Landis+Gyr | successfactors | HTML |
@@ -38,6 +38,7 @@ cron-job.org (every 5 min) -> GitHub Actions (.github/workflows/poll.yml) -> pyt
 | alaska | Alaska Airlines (+ Horizon, Hawaiian) | jobsyn | DirectEmployers API |
 | asurion | Asurion | workday | |
 | abb | ABB | workday | `searchText: software` (full board is 2000+) |
+| schwab | Charles Schwab | icims | HTML (`career-schwab.icims.com`, full board ~300 jobs, 7 pages). Its Workday tenant needs a login |
 
 All companies: USA locations only, alert threshold `minScore: 60`.
 
@@ -55,12 +56,6 @@ Epic Systems (only ~15 permanent role pages, nothing new to alert on).
 3. A new job system needs an adapter in `backend/functions/job_alerts/adapters/` plus a line in `registry.py`.
 4. Run the tests, push, then trigger a run. A new company's first run is a **baseline**: it marks every current job
    as seen and sends nothing.
-
-## Unfinished: Charles Schwab
-
-Started, not added. schwabjobs.com points to **iCIMS** (`career-schwab.icims.com`), which has no adapter yet.
-Next step: check whether Schwab also has a readable feed (e.g. a Workday or DirectEmployers board) or write an
-iCIMS adapter (`https://career-schwab.icims.com/jobs/search?ss=1&searchKeyword=software` plus the job pages).
 
 ## Developing
 
@@ -80,4 +75,6 @@ gh workflow run poll.yml -R Yousif-M-M-H/job-alerts
 Runs: https://github.com/Yousif-M-M-H/job-alerts/actions/workflows/poll.yml
 
 A run is red when **any** company fails; the other companies were still checked. The log line
-`<company>: FAILED: ...` shows which one.
+`<company>: FAILED: ...` shows which one. A **429 rate limit** is not a failure: the log says
+`<company>: RATE LIMITED, will retry next run` and the run stays green. It still counts toward the
+3-failures-in-a-row Telegram warning, so a board that blocks us for good is still reported.

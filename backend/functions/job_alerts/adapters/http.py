@@ -6,12 +6,13 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from .base import AdapterError
+from .base import AdapterError, RateLimitedError
 
 TIMEOUT_SECONDS = 20
 MAX_RETRIES = 3
 RETRY_BACKOFF_SECONDS = 1.0
-RETRY_STATUSES = (429, 500, 502, 503, 504)
+TOO_MANY_REQUESTS = 429
+RETRY_STATUSES = (TOO_MANY_REQUESTS, 500, 502, 503, 504)
 USER_AGENT = "job-alerts/0.1"
 BLOCK_TAGS = frozenset({"p", "br", "li", "div", "ul", "ol", "h1", "h2", "h3", "h4", "tr"})
 
@@ -56,6 +57,9 @@ def fetch(session: requests.Session, method: str, url: str, **kwargs: Any) -> re
         response = session.request(method, url, timeout=TIMEOUT_SECONDS, **kwargs)
         response.raise_for_status()
     except requests.RequestException as error:
+        status = error.response.status_code if error.response is not None else None
+        if status == TOO_MANY_REQUESTS:
+            raise RateLimitedError(f"{method} {url} was rate limited (429)") from error
         raise AdapterError(f"{method} {url} failed: {error}") from error
     return response
 

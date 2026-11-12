@@ -10,7 +10,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .adapters.base import AdapterError
+from .adapters.base import AdapterError, RateLimitedError
 from .adapters.registry import build_adapter
 from .config import ConfigError, parse_companies
 from .health import evaluate, is_due, load_health, save_health, scoring_status
@@ -91,10 +91,17 @@ def main() -> int:
     store = JsonStore(args.state)
     score_job = _build_scorer()
     outcomes: dict[str, bool] = {}
+    rate_limited: set[str] = set()
     results: list[PollResult] = []
     for company in due:
         try:
             result = poll_company(company, build_adapter(company), store, score_job, notify)
+        except RateLimitedError as error:
+            # Temporary; still counts toward the 3-in-a-row health warning, but keeps the run green.
+            print(f"\n{company.id}: RATE LIMITED, will retry next run: {error}", file=sys.stderr)
+            outcomes[company.id] = False
+            rate_limited.add(company.id)
+            continue
         except AdapterError as error:
             # One company failing must not stop the others.
             print(f"\n{company.id}: FAILED: {error}", file=sys.stderr)
@@ -105,7 +112,12 @@ def main() -> int:
         outcomes[company.id] = not result.failed_ids
 
     _report_health(args.health, health, outcomes, tuple(results), notify, board_count=len(selected))
-    return 0 if all(outcomes.values()) else 1
+    return exit_code(outcomes, frozenset(rate_limited))
+
+
+def exit_code(outcomes: dict[str, bool], rate_limited: frozenset[str]) -> int:
+    """1 when a company really failed; a rate limit alone is not a failure."""
+    return 0 if all(is_ok or cid in rate_limited for cid, is_ok in outcomes.items()) else 1
 
 
 def _report_health(

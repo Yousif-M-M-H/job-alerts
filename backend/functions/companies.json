@@ -432,5 +432,40 @@
     },
     "minScore": 60,
     "paused": false
+  },
+  {
+    "id": "schwab",
+    "name": "Charles Schwab",
+    "ats": "icims",
+    "atsConfig": {
+      "host": "career-schwab.icims.com"
+    },
+    "filter": {
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded",
+        "programmer"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "mechanical",
+        "electrical",
+        "hardware",
+        "sales",
+        "civil",
+        "manufacturing",
+        "quality",
+        "manager",
+        "director",
+        "network"
+      ],
+      "locations": []
+    },
+    "minScore": 60,
+    "paused": false
   }
 ]

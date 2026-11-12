@@ -8,6 +8,10 @@ class AdapterError(RuntimeError):
     """The ATS failed or returned something unexpected."""
 
 
+class RateLimitedError(AdapterError):
+    """The ATS answered 429 Too Many Requests even after retries. Temporary: try again next run."""
+
+
 class Adapter(Protocol):
     def list_jobs(self) -> tuple[JobSummary, ...]:
         """Return every open posting, or raise AdapterError. Never a partial list."""
