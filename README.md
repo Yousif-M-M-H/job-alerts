@@ -87,7 +87,9 @@ gh workflow run poll.yml -R Yousif-M-M-H/job-alerts
 
 Runs: https://github.com/Yousif-M-M-H/job-alerts/actions/workflows/poll.yml
 
-A run is red when **any** company fails; the other companies were still checked. The log line
-`<company>: FAILED: ...` shows which one. A **429 rate limit** is not a failure: the log says
-`<company>: RATE LIMITED, will retry next run` and the run stays green. It still counts toward the
-3-failures-in-a-row Telegram warning, so a board that blocks us for good is still reported.
+A run is red only when a company reaches **3 failed checks in a row**, the same moment the Telegram
+warning is sent, so each real incident gives one red run. Single blips (timeouts, 5xx, a `429` rate
+limit) stay green but are still logged as `<company>: FAILED: ...` or `<company>: RATE LIMITED ...`.
+While a board stays down, later runs are green again; the Telegram "working again" message and the
+daily "Problems: ..." line tell you when it is fixed. Example: on 2026-11-13/14 Workday returned
+521 errors for about 22 hours (SEL, Bentley, Itron, BCBST, Caterpillar) and recovered on its own.

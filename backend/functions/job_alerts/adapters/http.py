@@ -70,7 +70,8 @@ def fetch_json_value(session: requests.Session, method: str, url: str, **kwargs:
     try:
         return response.json()
     except ValueError as error:
-        raise AdapterError(f"{method} {url} did not return JSON") from error
+        content_type = response.headers.get("Content-Type", "unknown type")
+        raise AdapterError(f"{method} {url} did not return JSON (HTTP {response.status_code}, {content_type})") from error
 
 
 def fetch_json(session: requests.Session, method: str, url: str, **kwargs: Any) -> dict[str, Any]:

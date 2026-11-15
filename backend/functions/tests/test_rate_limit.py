@@ -29,10 +29,17 @@ def test_other_http_errors_stay_plain_adapter_errors():
     assert not isinstance(caught.value, RateLimitedError)
 
 
-def test_rate_limit_alone_keeps_the_run_green():
-    assert exit_code({"sel": True, "microsoft": False}, frozenset({"microsoft"})) == 0
+def test_a_one_off_failure_keeps_the_run_green():
+    assert exit_code({"sel": False, "microsoft": True}, {}) == 0
 
 
-def test_real_failure_turns_the_run_red():
-    assert exit_code({"sel": False, "microsoft": False}, frozenset({"microsoft"})) == 1
-    assert exit_code({"sel": True}, frozenset()) == 0
+def test_the_third_failure_in_a_row_turns_the_run_red():
+    assert exit_code({"sel": False}, {"sel": 2}) == 1
+
+
+def test_an_ongoing_outage_is_red_only_once():
+    assert exit_code({"sel": False}, {"sel": 3}) == 0
+
+
+def test_all_ok_is_green():
+    assert exit_code({"sel": True}, {"sel": 5}) == 0
