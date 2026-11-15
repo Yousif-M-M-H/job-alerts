@@ -475,7 +475,8 @@
     "atsConfig": {
       "host": "zebra.wd501.myworkdayjobs.com",
       "tenant": "zebra",
-      "site": "Zebra_careers"
+      "site": "Zebra_careers",
+      "searchText": "software"
     },
     "filter": {
       "titleAlways": [
@@ -501,7 +502,8 @@
       "locations": []
     },
     "minScore": 60,
-    "paused": false
+    "paused": false,
+    "checkEveryMinutes": 15
   },
   {
     "id": "trimble",

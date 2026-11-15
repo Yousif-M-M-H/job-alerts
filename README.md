@@ -39,7 +39,7 @@ cron-job.org (every 5 min) -> GitHub Actions (.github/workflows/poll.yml) -> pyt
 | asurion | Asurion | workday | |
 | abb | ABB | workday | `searchText: software` (full board is 2000+) |
 | schwab | Charles Schwab | icims | HTML (`career-schwab.icims.com`, full board ~300 jobs, 7 pages). Its Workday tenant needs a login |
-| zebra | Zebra Technologies | workday | `wd501` host |
+| zebra | Zebra Technologies | workday | `wd501` host; `searchText: software`, `checkEveryMinutes: 15` (rate limits the full board at 5 min) |
 | trimble | Trimble | workday | |
 | cognex | Cognex | workday | |
 | adtran | ADTRAN | workday | |
