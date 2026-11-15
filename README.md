@@ -22,7 +22,7 @@ cron-job.org (every 5 min) -> GitHub Actions (.github/workflows/poll.yml) -> pyt
 - **Health messages on Telegram:** a warning after 3 failed checks in a row for a company (and a "working again"
   message), a warning if scoring fails, and a daily "🟢 still running" message after 13:00 UTC.
 
-## Companies watched (13, `backend/functions/companies.json`)
+## Companies watched (18 companies, 19 boards, `backend/functions/companies.json`)
 
 | id | Company | ATS adapter | Notes |
 |---|---|---|---|
@@ -39,8 +39,17 @@ cron-job.org (every 5 min) -> GitHub Actions (.github/workflows/poll.yml) -> pyt
 | asurion | Asurion | workday | |
 | abb | ABB | workday | `searchText: software` (full board is 2000+) |
 | schwab | Charles Schwab | icims | HTML (`career-schwab.icims.com`, full board ~300 jobs, 7 pages). Its Workday tenant needs a login |
+| zebra | Zebra Technologies | workday | `wd501` host |
+| trimble | Trimble | workday | |
+| cognex | Cognex | workday | |
+| adtran | ADTRAN | workday | |
+| generac | Generac | workday | |
 
 All companies: USA locations only, alert threshold `minScore: 60`.
+
+The last 5 (added 2026-11-15) were picked for size (similar to SEL) and an H-1B record of sponsoring software
+roles (h1bdata.info filings, 2023-2026). Checked and left out for rare or no software sponsorship: Woodward,
+nVent, Xylem/Sensus, Badger Meter (none). Lattice Semiconductor is borderline.
 
 **Not watched, and why:** Tesla and HCA Healthcare (sites return 403 to automated requests; we don't bypass blocks),
 S&C Electric (403, job system not found), FedEx (Paradox site, page data only has ~25 package-handler jobs),

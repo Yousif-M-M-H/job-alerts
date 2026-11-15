@@ -467,5 +467,180 @@
     },
     "minScore": 60,
     "paused": false
+  },
+  {
+    "id": "zebra",
+    "name": "Zebra Technologies",
+    "ats": "workday",
+    "atsConfig": {
+      "host": "zebra.wd501.myworkdayjobs.com",
+      "tenant": "zebra",
+      "site": "Zebra_careers"
+    },
+    "filter": {
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "mechanical",
+        "electrical",
+        "hardware",
+        "sales",
+        "civil",
+        "manufacturing",
+        "quality",
+        "manager",
+        "director"
+      ],
+      "locations": []
+    },
+    "minScore": 60,
+    "paused": false
+  },
+  {
+    "id": "trimble",
+    "name": "Trimble",
+    "ats": "workday",
+    "atsConfig": {
+      "host": "trimble.wd1.myworkdayjobs.com",
+      "tenant": "trimble",
+      "site": "TrimbleCareers"
+    },
+    "filter": {
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "mechanical",
+        "electrical",
+        "hardware",
+        "sales",
+        "civil",
+        "manufacturing",
+        "quality",
+        "manager",
+        "director"
+      ],
+      "locations": []
+    },
+    "minScore": 60,
+    "paused": false
+  },
+  {
+    "id": "cognex",
+    "name": "Cognex",
+    "ats": "workday",
+    "atsConfig": {
+      "host": "cognex.wd1.myworkdayjobs.com",
+      "tenant": "cognex",
+      "site": "External_Career_Site"
+    },
+    "filter": {
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "mechanical",
+        "electrical",
+        "hardware",
+        "sales",
+        "civil",
+        "manufacturing",
+        "quality",
+        "manager",
+        "director"
+      ],
+      "locations": []
+    },
+    "minScore": 60,
+    "paused": false
+  },
+  {
+    "id": "adtran",
+    "name": "ADTRAN",
+    "ats": "workday",
+    "atsConfig": {
+      "host": "adtran.wd3.myworkdayjobs.com",
+      "tenant": "adtran",
+      "site": "adtran"
+    },
+    "filter": {
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "mechanical",
+        "electrical",
+        "hardware",
+        "sales",
+        "civil",
+        "manufacturing",
+        "quality",
+        "manager",
+        "director"
+      ],
+      "locations": []
+    },
+    "minScore": 60,
+    "paused": false
+  },
+  {
+    "id": "generac",
+    "name": "Generac",
+    "ats": "workday",
+    "atsConfig": {
+      "host": "generac.wd5.myworkdayjobs.com",
+      "tenant": "generac",
+      "site": "External"
+    },
+    "filter": {
+      "titleAlways": [
+        "software",
+        "developer",
+        "firmware",
+        "embedded"
+      ],
+      "titleInclude": [
+        "engineer"
+      ],
+      "titleExclude": [
+        "mechanical",
+        "electrical",
+        "hardware",
+        "sales",
+        "civil",
+        "manufacturing",
+        "quality",
+        "manager",
+        "director"
+      ],
+      "locations": []
+    },
+    "minScore": 60,
+    "paused": false
   }
 ]
