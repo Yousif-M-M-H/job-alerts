@@ -79,6 +79,37 @@ Epic Systems (only ~15 permanent role pages, nothing new to alert on).
 4. Run the tests, push, then trigger a run. A new company's first run is a **baseline**: it marks every current job
    as seen and sends nothing.
 
+## Next steps (planned improvements)
+
+Context: I graduate in **May 2027** and am looking for new-grad software/firmware/embedded roles, so speed and
+new-grad fit matter most. Do these in order; 1 and 2 together first.
+
+**For the job search now**
+1. **New-grad scoring.** Tell the scorer (`matching/rerank.py` prompt) I graduate May 2027: rank "Software Engineer I",
+   "Associate", "New Grad", "Early Career" higher and roles asking 3-5+ years lower.
+2. **Skip senior roles.** Add "senior", "sr", "staff", "principal", "lead", "manager" to `titleExclude` before scoring
+   (fewer useless alerts, lower API cost).
+3. **Early-career boards.** Add companies' separate new-grad/university boards, like `itron_early`.
+
+**Better alerts**
+4. **👍 / 👎 buttons** on Telegram alerts, read with `getUpdates` each run; feed 👎 reasons into scoring. Also
+   `/status` and `/pause <company>` commands.
+5. **No duplicate alerts.** Skip a job already alerted with the same company + title + location (two boards of one
+   company, or a repost with a new ID).
+6. **Weekly near-miss list.** Jobs scoring 45-59, to tune `minScore: 60`.
+
+**More companies**
+7. **Better power/grid companies** like SEL with a real H-1B record for software roles (check h1bdata.info).
+   Already rejected for rare or no sponsorship: Woodward, nVent, Xylem/Sensus, Badger Meter.
+8. **Any company named:** check its job system (Workday / Greenhouse / Lever / Ashby / iCIMS) and H-1B record, then add.
+
+**Keeping it running**
+9. **Reminders before it stops:** Telegram reminder 2 weeks before the GitHub token expires (2027-02-09), and turn on
+   cron-job.org's failure email.
+
+**Open issue:** Zebra rate-limits GitHub's servers. It is on hourly checks since 2026-11-16; if the daily message
+still says "Problems: zebra", set `"paused": true` for it.
+
 ## Developing
 
 ```bash
