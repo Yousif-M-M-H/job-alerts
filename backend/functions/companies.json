@@ -503,7 +503,7 @@
     },
     "minScore": 60,
     "paused": false,
-    "checkEveryMinutes": 15
+    "checkEveryMinutes": 60
   },
   {
     "id": "trimble",
