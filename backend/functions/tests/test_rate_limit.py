@@ -96,24 +96,3 @@ def test_only_a_few_boards_per_job_system_run_each_time():
     kept, deferred = cap_per_ats(companies, {"workday": 3})
     assert [c.id for c in kept] == ["wd0", "wd1", "wd2", "schwab"]
     assert [c.id for c in deferred] == ["wd3", "wd4"]
-
-
-def test_only_ats_keeps_just_that_job_system():
-    from job_alerts.cli import select_by_ats
-
-    companies = [_company("sel", "workday"), _company("schwab", "icims"), _company("cat", "workday")]
-    assert [c.id for c in select_by_ats(companies, only=("workday",), skip=())] == ["sel", "cat"]
-
-
-def test_skip_ats_drops_that_job_system():
-    from job_alerts.cli import select_by_ats
-
-    companies = [_company("sel", "workday"), _company("schwab", "icims")]
-    assert [c.id for c in select_by_ats(companies, only=(), skip=("workday",))] == ["schwab"]
-
-
-def test_no_ats_options_keeps_every_company():
-    from job_alerts.cli import select_by_ats
-
-    companies = [_company("sel", "workday"), _company("schwab", "icims")]
-    assert select_by_ats(companies, only=(), skip=()) == companies

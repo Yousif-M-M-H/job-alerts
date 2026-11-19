@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Commit and push the given state files. Two workflows push to main (GitHub-hosted and the
-# home Workday runner), each with its own files, so a rejected push just rebases and retries.
+# Commit and push the given state files. If main moved meanwhile (a manual commit, an overlapping
+# run), rebase and retry instead of losing the seen jobs.
 set -euo pipefail
 
 MAX_ATTEMPTS=5

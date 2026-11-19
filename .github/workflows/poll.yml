@@ -12,7 +12,6 @@ concurrency:
 
 permissions:
   contents: write
-  actions: write  # to start poll-workday.yml
 
 jobs:
   poll:
@@ -38,14 +37,8 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CV_TEXT: ${{ secrets.CV_TEXT }}
-        # Workday blocks GitHub's servers; those boards run on the home Mac (poll-workday.yml).
-        run: python -m job_alerts.cli --skip-ats workday
+        run: python -m job_alerts.cli
       # Always save: alerts already sent must stay marked seen even if a later job failed.
       - name: Save seen jobs
         if: always()
         run: ../../.github/scripts/save-state.sh state.json health.json
-      - name: Start the Workday run on the home Mac
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run poll-workday.yml --repo "$GITHUB_REPOSITORY" --ref main

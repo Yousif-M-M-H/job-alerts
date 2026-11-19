@@ -9,29 +9,21 @@ that matches my CV. Alerts only: applying happens on the company's site. Design 
 cron-job.org (every 5 min) -> GitHub Actions (.github/workflows/poll.yml) -> python -m job_alerts.cli
   per company: list jobs -> skip seen IDs -> title filter -> details -> USA only -> clearance/sponsorship skip
   -> Claude Haiku scores against the CV (0-100) -> score >= 60 -> Telegram alert -> save seen IDs (state.json)
-poll.yml (GitHub's servers, every board except Workday) -> at the end, starts poll-workday.yml
-poll-workday.yml (self-hosted runner on the home Mac, Workday boards only) -> state-workday.json, health-workday.json
 ```
 
-- **Why two workflows (since 2026-11-19):** Workday answers GitHub's servers with `429` on the very first request,
-  while the same request from the home connection gets `200`. So Workday boards run on a self-hosted runner on the
-  home Mac (`~/actions-runner-job-alerts`, label `job-alerts-home`, started at login as a LaunchAgent). Workday
-  boards are only checked while the Mac is on and awake; at most one Workday run waits in the queue meanwhile. Each
-  side keeps its own state and health files, so their commits never conflict (`.github/scripts/save-state.sh`
-  rebases and retries a rejected push). Each side sends its own daily 🟢 message ("watching 13 boards" is the Mac).
-  - Runner status: `gh api repos/Yousif-M-M-H/job-alerts/actions/runners --jq '.runners[] | .name + " " + .status'`.
-    Restart: `cd ~/actions-runner-job-alerts && ./svc.sh stop && ./svc.sh start`.
-  - The repo is public, so the home runner must never run pull-request code: `poll-workday.yml` only has
-    `workflow_dispatch` and checks out `main`, and fork PRs from all outside contributors need approval
-    (repo setting, changed 2026-11-19). Never add a `pull_request` trigger to a workflow that uses this runner.
+- **Workday uses HTTP/2 (since 2026-11-19):** from GitHub's servers, Workday answers Python over HTTP/1.1 with `429`
+  on the very first request, but HTTP/2 with `200` (same headers and User-Agent, same server; curl gets `200` either
+  way). So the Workday adapter uses `httpx` with HTTP/2 (`build_http2_client` / `fetch_json_http2` in
+  `adapters/http.py`); the other adapters still use `requests`. If Workday starts returning `429` from GitHub again,
+  first test which client/protocol gets through from `ubuntu-latest` with a throwaway `workflow_dispatch` workflow.
 
 - **Trigger:** cron-job.org sends a POST to the workflow's `dispatches` API every 5 minutes. It uses a fine-grained
   token from the **Yousif-M-M-H** account (only `job-alerts`, Actions: read and write). The token **expires 2027-02-09**.
   To renew it, make a new token and set the `Authorization: Bearer <token>` header on cron-job.org. GitHub's own
   `schedule` stays on as a slow backup (it runs only every few hours).
 - **State:** `backend/functions/state.json` (seen job IDs) and `health.json` (failure counts, last check times,
-  daily message) are committed by the workflow after every run; Workday boards use `state-workday.json` and
-  `health-workday.json`. Runs check out the latest `main`.
+  daily message) are committed by the workflow after every run (`.github/scripts/save-state.sh` rebases and
+  retries a rejected push). Runs check out the latest `main`.
 - **Secrets (GitHub repo settings):** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `ANTHROPIC_API_KEY`, `CV_TEXT`.
   The repo is public: never print the CV, scores' reasons or secrets to logs.
 - **Health messages on Telegram:** "⚠️ Not working" once a company has failed 3 checks in a row **and** had no
@@ -125,17 +117,18 @@ matter most.
   it sends a new warning. Replaying Nov 16-19 gives 5-10 messages a day instead of 220-320.
 
 - **Pacing was not enough (checked 2026-11-19 23:00 UTC):** over 30 runs after `505f0f7`, 49 of 52 Workday attempts
-  got `429` on the run's first Workday request, so GitHub's servers are blocked, not our request rate. Moved Workday
-  to a self-hosted runner on the home Mac (see "Why two workflows" above).
+  got `429` on the run's first Workday request. A test workflow then showed curl gets `200` from every GitHub
+  server type, and Python gets `200` over HTTP/2 but `429` over HTTP/1.1. Fixed by switching the Workday adapter
+  to HTTP/2 (see "Workday uses HTTP/2" above). A self-hosted runner on the home Mac was used for about 30 minutes
+  in between and has been removed.
 
 ### Do first in a new session: check that the fixes worked
-1. **Workday checks succeed on the home runner.** `gh run list -R Yousif-M-M-H/job-alerts --workflow poll-workday.yml
-   --limit 20`, then open a recent run's "Poll and alert" log. Expect Workday boards with `open jobs` lines and no
-   `RATE LIMITED`. Target: every Workday board succeeds on 95%+ of checks while the Mac is on, and `failures` in
-   `backend/functions/health-workday.json` stays at 0 for SEL. The first Mac runs score every job posted since
-   2026-11-16, so expect a burst of alerts once.
-   - If `429`s show up from home too: raise `REQUEST_INTERVAL_SECONDS` (try 8-10 s) and/or lower `MAX_BOARDS_PER_RUN`.
-   - If runs sit in "queued": the Mac is asleep or the runner stopped (see runner status above).
+1. **Workday checks succeed.** `gh run list -R Yousif-M-M-H/job-alerts --workflow poll.yml --limit 20`, then open a
+   recent run's "Poll and alert" log. Expect Workday boards with `open jobs` lines and no `RATE LIMITED`. Target:
+   every Workday board succeeds on 95%+ of checks over 24 h, and `failures` in `backend/functions/health.json`
+   stays at 0 for SEL.
+   - If `429`s continue: raise `REQUEST_INTERVAL_SECONDS` (try 8-10 s) and/or lower `MAX_BOARDS_PER_RUN` to 2.
+   - Check run time stays well under the 15 min timeout (`gh run list` shows durations).
 2. **Telegram is quiet.** The daily 🟢 message (after 13:00 UTC) should list few or no "Problems", with only a handful
    of ⚠️/✅ messages a day. The companies still in `warned` from before need 3 good checks in a row to clear.
 3. **Alerts look right.** Over a week, alerts should be entry-level roles, more of them from SEL and the other Workday
@@ -157,9 +150,8 @@ matter most.
    check its job system (Workday / Greenhouse / Lever / Ashby / iCIMS) and H-1B record, then add.
 10. **Reminders before it stops:** Telegram reminder 2 weeks before the GitHub token expires (2027-02-09), and turn on
     cron-job.org's failure email.
-11. **Warn when the home runner is down:** Workday is only checked while the Mac is awake. Have `poll.yml` send one
-    Telegram warning when `health-workday.json`'s newest `lastChecked` is over a few hours old. Also: a skipped
-    board after another Workday board's `429` counts as a failure (`poll_all` in `cli.py`), which inflates counts.
+11. **Failure counts:** a board skipped because another Workday board already got a `429` counts as a failure
+    (`poll_all` in `cli.py`), which inflates `failures` in `health.json`.
 
 ### Notes for analysis sessions
 - Downloading logs for thousands of runs uses up the account's GitHub API limit (5,000 requests/hour), which the

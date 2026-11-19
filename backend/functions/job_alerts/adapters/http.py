@@ -1,7 +1,10 @@
 """Shared HTTP and HTML helpers for adapters."""
+import time
+from collections.abc import Callable
 from html.parser import HTMLParser
 from typing import Any
 
+import httpx
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -65,9 +68,7 @@ def fetch(session: requests.Session, method: str, url: str, **kwargs: Any) -> re
     return response
 
 
-def fetch_json_value(session: requests.Session, method: str, url: str, **kwargs: Any) -> Any:
-    """Any JSON value (object or list); callers check the shape."""
-    response = fetch(session, method, url, **kwargs)
+def _json_value(response: requests.Response | httpx.Response, method: str, url: str) -> Any:
     try:
         return response.json()
     except ValueError as error:
@@ -75,8 +76,53 @@ def fetch_json_value(session: requests.Session, method: str, url: str, **kwargs:
         raise AdapterError(f"{method} {url} did not return JSON (HTTP {response.status_code}, {content_type})") from error
 
 
-def fetch_json(session: requests.Session, method: str, url: str, **kwargs: Any) -> dict[str, Any]:
-    payload = fetch_json_value(session, method, url, **kwargs)
+def _json_object(payload: Any, method: str, url: str) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise AdapterError(f"{method} {url} returned non-object JSON")
     return payload
+
+
+def fetch_json_value(session: requests.Session, method: str, url: str, **kwargs: Any) -> Any:
+    """Any JSON value (object or list); callers check the shape."""
+    return _json_value(fetch(session, method, url, **kwargs), method, url)
+
+
+def fetch_json(session: requests.Session, method: str, url: str, **kwargs: Any) -> dict[str, Any]:
+    return _json_object(fetch_json_value(session, method, url, **kwargs), method, url)
+
+
+def build_http2_client() -> httpx.Client:
+    """For Workday. From GitHub's servers it answers Python over HTTP/1.1 with 429 on the first request,
+    but HTTP/2 with 200 (same headers, same server; tested 2026-11-19). The User-Agent stays our own."""
+    return httpx.Client(
+        http2=True,
+        timeout=TIMEOUT_SECONDS,
+        headers={"Accept": "application/json", "User-Agent": USER_AGENT},
+    )
+
+
+def _send_http2(
+    client: httpx.Client, method: str, url: str, sleep: Callable[[float], None], **kwargs: Any
+) -> httpx.Response:
+    """Retries 5xx like build_session does; 429 is never retried."""
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            response = client.request(method, url, **kwargs)
+        except httpx.HTTPError as error:
+            raise AdapterError(f"{method} {url} failed: {error}") from error
+        is_retryable = response.status_code in RETRY_STATUSES and attempt < MAX_RETRIES
+        if not is_retryable:
+            return response
+        sleep(RETRY_BACKOFF_SECONDS * 2**attempt)
+    return response
+
+
+def fetch_json_http2(
+    client: httpx.Client, method: str, url: str, sleep: Callable[[float], None] = time.sleep, **kwargs: Any
+) -> dict[str, Any]:
+    response = _send_http2(client, method, url, sleep, **kwargs)
+    if response.status_code == TOO_MANY_REQUESTS:
+        raise RateLimitedError(f"{method} {url} was rate limited (429)")
+    if response.is_error:
+        raise AdapterError(f"{method} {url} failed: HTTP {response.status_code}")
+    return _json_object(_json_value(response, method, url), method, url)

@@ -95,7 +95,7 @@ def test_requests_are_spaced_to_stay_under_the_burst_limit(monkeypatch):
     import job_alerts.adapters.workday as workday
 
     clock = FakeClock()
-    monkeypatch.setattr(workday, "fetch_json", lambda *args, **kwargs: {})
+    monkeypatch.setattr(workday, "fetch_json_http2", lambda *args, **kwargs: {})
     adapter = WorkdayAdapter("sel", "example.test", "tenant", "SITE", clock=clock.time, sleep=clock.sleep)
     for _ in range(3):
         adapter._request("POST", "/jobs")
@@ -106,7 +106,7 @@ def test_no_wait_when_enough_time_already_passed(monkeypatch):
     import job_alerts.adapters.workday as workday
 
     clock = FakeClock()
-    monkeypatch.setattr(workday, "fetch_json", lambda *args, **kwargs: {})
+    monkeypatch.setattr(workday, "fetch_json_http2", lambda *args, **kwargs: {})
     adapter = WorkdayAdapter("sel", "example.test", "tenant", "SITE", clock=clock.time, sleep=clock.sleep)
     adapter._request("POST", "/jobs")
     clock.now += workday.REQUEST_INTERVAL_SECONDS + 1
