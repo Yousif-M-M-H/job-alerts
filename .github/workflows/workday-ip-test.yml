@@ -19,21 +19,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -q -r requirements.txt
+      - run: pip install -q -r requirements.txt "httpx[http2]"
       - name: Probe Workday
         run: |
           SEL=https://selinc.wd1.myworkdayjobs.com/wday/cxs/selinc/SEL/jobs
           BODY='{"appliedFacets":{},"limit":20,"offset":0,"searchText":""}'
-          echo "RESULT curl default headers: $(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "$BODY" $SEL)"
+          echo "RESULT curl http2: $(curl -s --http2 -o /dev/null -w '%{http_code} %{http_version}' -X POST -H 'Content-Type: application/json' -A 'job-alerts/0.1' -d "$BODY" $SEL)"
           sleep 6
-          echo "RESULT curl with our headers: $(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' -A 'job-alerts/0.1' -d "$BODY" $SEL)"
+          echo "RESULT curl http1.1: $(curl -s --http1.1 -o /dev/null -w '%{http_code} %{http_version}' -X POST -H 'Content-Type: application/json' -A 'job-alerts/0.1' -d "$BODY" $SEL)"
           sleep 6
-          python - <<'EOF'
-          import requests
-          from job_alerts.adapters.http import build_session
+          python - <<'PY'
+          import time, httpx
           url = "https://selinc.wd1.myworkdayjobs.com/wday/cxs/selinc/SEL/jobs"
           body = {"appliedFacets": {}, "limit": 20, "offset": 0, "searchText": ""}
-          print("RESULT python adapter session:", build_session().post(url, json=body, timeout=30).status_code)
-          import time; time.sleep(6)
-          print("RESULT python plain requests:", requests.post(url, json=body, timeout=30).status_code)
-          EOF
+          headers = {"User-Agent": "job-alerts/0.1", "Accept": "application/json"}
+          for http2 in (True, False):
+              with httpx.Client(http2=http2, headers=headers, timeout=30) as client:
+                  r = client.post(url, json=body)
+                  print("RESULT httpx http2=%s: %s %s" % (http2, r.status_code, r.http_version))
+              time.sleep(6)
+          PY
