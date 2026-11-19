@@ -16,7 +16,8 @@ permissions:
 jobs:
   poll:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Workday requests are paced 5 s apart: 3 big boards can take ~6 min on their own.
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: backend/functions

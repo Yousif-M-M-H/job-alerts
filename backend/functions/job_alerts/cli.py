@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import sys
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from .adapters.registry import build_adapter
 from .config import ConfigError, parse_companies
 from .health import FAILURES_BEFORE_WARNING, evaluate, is_due, load_health, save_health, scoring_status
 from .matching.rerank import ClaudeScorer
-from .models import PollResult
+from .models import Company, PollResult
 from .notify.base import NotifyError
 from .notify.telegram import TelegramNotifier
 from .pipeline import Scorer, poll_company
@@ -25,6 +26,9 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = ROOT / "companies.json"
 DEFAULT_STATE = ROOT / "state.json"
 DEFAULT_HEALTH = ROOT / "health.json"
+# Workday boards are paced (5 s per request), so a run checks only a few of them. Ones not reached
+# stay due and go first next run, so all 13 Workday boards are covered within their 30-minute interval.
+MAX_BOARDS_PER_RUN = {"workday": 3}
 
 
 def _print_result(result: PollResult) -> None:
@@ -87,29 +91,66 @@ def main() -> int:
     for company in selected:
         if company not in due:
             print(f"\n{company.id}: skipped, checked less than {company.check_every_minutes} min ago")
+    if not args.company:
+        due, deferred = cap_per_ats(due, MAX_BOARDS_PER_RUN)
+        for company in deferred:
+            print(f"\n{company.id}: waiting, at most {MAX_BOARDS_PER_RUN[company.ats]} {company.ats} boards per run")
 
     store = JsonStore(args.state)
     score_job = _build_scorer()
+    outcomes, results = poll_all(
+        due, lambda company: poll_company(company, build_adapter(company), store, score_job, notify)
+    )
+    _report_health(args.health, health, outcomes, results, notify, board_count=len(selected))
+    return exit_code(outcomes, health.get("failures", {}))
+
+
+def cap_per_ats(
+    companies: list[Company], caps: dict[str, int]
+) -> tuple[list[Company], list[Company]]:
+    """Keep the first `caps[ats]` companies of each capped job system; the rest wait for a later run."""
+    counts: dict[str, int] = {}
+    kept: list[Company] = []
+    deferred: list[Company] = []
+    for company in companies:
+        counts = {**counts, company.ats: counts.get(company.ats, 0) + 1}
+        is_over = company.ats in caps and counts[company.ats] > caps[company.ats]
+        (deferred if is_over else kept).append(company)
+    return kept, deferred
+
+
+def poll_all(
+    companies: list[Company], poll_one: Callable[[Company], PollResult]
+) -> tuple[dict[str, bool], tuple[PollResult, ...]]:
+    """Poll each company. One company failing must not stop the others.
+
+    After a 429, the other boards on the same job system (e.g. every Workday board) are skipped
+    for this run: they share the rate limit, so asking again only keeps us blocked longer.
+    They still count as a failed check, like the 429 they would almost surely get.
+    """
     outcomes: dict[str, bool] = {}
     results: list[PollResult] = []
-    for company in due:
+    rate_limited_ats: set[str] = set()
+    for company in companies:
+        if company.ats in rate_limited_ats:
+            print(f"\n{company.id}: RATE LIMITED, skipped: {company.ats} already returned 429 this run", file=sys.stderr)
+            outcomes[company.id] = False
+            continue
         try:
-            result = poll_company(company, build_adapter(company), store, score_job, notify)
+            result = poll_one(company)
         except RateLimitedError as error:
             print(f"\n{company.id}: RATE LIMITED, will retry next run: {error}", file=sys.stderr)
+            rate_limited_ats = rate_limited_ats | {company.ats}
             outcomes[company.id] = False
             continue
         except AdapterError as error:
-            # One company failing must not stop the others.
             print(f"\n{company.id}: FAILED: {error}", file=sys.stderr)
             outcomes[company.id] = False
             continue
         _print_result(result)
         results.append(result)
         outcomes[company.id] = not result.failed_ids
-
-    _report_health(args.health, health, outcomes, tuple(results), notify, board_count=len(selected))
-    return exit_code(outcomes, health.get("failures", {}))
+    return outcomes, tuple(results)
 
 
 def exit_code(outcomes: dict[str, bool], old_failures: dict[str, int]) -> int:

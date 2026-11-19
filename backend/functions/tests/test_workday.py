@@ -76,3 +76,39 @@ def test_get_job_combines_primary_and_additional_locations(monkeypatch):
 
 def test_html_to_text_decodes_entities():
     assert html_to_text("<p>R&amp;D team</p>") == "R&D team"
+
+
+class FakeClock:
+    def __init__(self) -> None:
+        self.now = 1000.0
+        self.sleeps: list[float] = []
+
+    def time(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.sleeps.append(seconds)
+        self.now += seconds
+
+
+def test_requests_are_spaced_to_stay_under_the_burst_limit(monkeypatch):
+    import job_alerts.adapters.workday as workday
+
+    clock = FakeClock()
+    monkeypatch.setattr(workday, "fetch_json", lambda *args, **kwargs: {})
+    adapter = WorkdayAdapter("sel", "example.test", "tenant", "SITE", clock=clock.time, sleep=clock.sleep)
+    for _ in range(3):
+        adapter._request("POST", "/jobs")
+    assert clock.sleeps == [workday.REQUEST_INTERVAL_SECONDS] * 2
+
+
+def test_no_wait_when_enough_time_already_passed(monkeypatch):
+    import job_alerts.adapters.workday as workday
+
+    clock = FakeClock()
+    monkeypatch.setattr(workday, "fetch_json", lambda *args, **kwargs: {})
+    adapter = WorkdayAdapter("sel", "example.test", "tenant", "SITE", clock=clock.time, sleep=clock.sleep)
+    adapter._request("POST", "/jobs")
+    clock.now += workday.REQUEST_INTERVAL_SECONDS + 1
+    adapter._request("GET", "/job/1")
+    assert clock.sleeps == []

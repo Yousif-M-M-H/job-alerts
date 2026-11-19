@@ -8,6 +8,8 @@ Behaviour seen on the live API:
 - Optional atsConfig 'searchText' narrows huge boards (Caterpillar: 999+ jobs, ~344 for 'software').
 """
 import logging
+import time
+from collections.abc import Callable
 from typing import Any
 
 from ..models import Company, Job, JobSummary
@@ -15,6 +17,9 @@ from .base import AdapterError
 from .http import build_session, fetch_json, html_to_text
 
 PAGE_SIZE = 20
+# Measured 2026-11-19: a board returns 429 after about 6 quick requests and lets requests through
+# again after ~30 s. One request every 5 s stays at 6 per 30 s. Applies to list pages and job details.
+REQUEST_INTERVAL_SECONDS = 5.0
 logger = logging.getLogger(__name__)
 
 
@@ -30,11 +35,17 @@ def _parse_summary(row: dict[str, Any]) -> JobSummary | None:
 
 
 class WorkdayAdapter:
-    def __init__(self, company_id: str, host: str, tenant: str, site: str, search_text: str = "") -> None:
+    def __init__(
+        self, company_id: str, host: str, tenant: str, site: str, search_text: str = "",
+        clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep,
+    ) -> None:
         self._company_id = company_id
         self._search_text = search_text
         self._base_url = f"https://{host}/wday/cxs/{tenant}/{site}"
         self._session = build_session()
+        self._clock = clock
+        self._sleep = sleep
+        self._last_request_at: float | None = None
 
     @classmethod
     def from_company(cls, company: Company) -> "WorkdayAdapter":
@@ -44,8 +55,19 @@ class WorkdayAdapter:
             raise AdapterError(f"company '{company.id}': atsConfig is missing {missing}")
         return cls(company.id, config["host"], config["tenant"], config["site"], config.get("searchText", ""))
 
+    def _wait_for_turn(self) -> None:
+        if self._last_request_at is None:
+            return
+        wait = self._last_request_at + REQUEST_INTERVAL_SECONDS - self._clock()
+        if wait > 0:
+            self._sleep(wait)
+
     def _request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
-        return fetch_json(self._session, method, f"{self._base_url}{path}", **kwargs)
+        self._wait_for_turn()
+        try:
+            return fetch_json(self._session, method, f"{self._base_url}{path}", **kwargs)
+        finally:
+            self._last_request_at = self._clock()
 
     def _fetch_page(self, offset: int) -> dict[str, Any]:
         body = {"appliedFacets": {}, "limit": PAGE_SIZE, "offset": offset, "searchText": self._search_text}

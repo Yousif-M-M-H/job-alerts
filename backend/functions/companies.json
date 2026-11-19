@@ -42,7 +42,8 @@
       "locations": []
     },
     "minScore": 60,
-    "paused": false
+    "paused": false,
+    "checkEveryMinutes": 30
   },
   {
     "id": "microsoft",
@@ -200,7 +201,8 @@
       "locations": []
     },
     "minScore": 60,
-    "paused": false
+    "paused": false,
+    "checkEveryMinutes": 30
   },
   {
     "id": "itron",
@@ -232,7 +234,8 @@
       "locations": []
     },
     "minScore": 60,
-    "paused": false
+    "paused": false,
+    "checkEveryMinutes": 30
   },
   {
     "id": "itron_early",
@@ -265,7 +268,8 @@
       "locations": []
     },
     "minScore": 60,
-    "paused": false
+    "paused": false,
+    "checkEveryMinutes": 30
   },
   {
     "id": "bcbst",
@@ -291,7 +295,8 @@
       "locations": []
     },
     "minScore": 60,
-    "paused": false
+    "paused": false,
+    "checkEveryMinutes": 30
   },
   {
     "id": "caterpillar",
@@ -327,7 +332,8 @@
       "locations": []
     },
     "minScore": 60,
-    "paused": false
+    "paused": false,
+    "checkEveryMinutes": 30
   },
   {
     "id": "alaska",
@@ -395,7 +401,8 @@
       "locations": []
     },
     "minScore": 60,
-    "paused": false
+    "paused": false,
+    "checkEveryMinutes": 30
   },
   {
     "id": "abb",
@@ -431,7 +438,8 @@
       "locations": []
     },
     "minScore": 60,
-    "paused": false
+    "paused": false,
+    "checkEveryMinutes": 30
   },
   {
     "id": "schwab",
@@ -538,7 +546,8 @@
       "locations": []
     },
     "minScore": 60,
-    "paused": false
+    "paused": false,
+    "checkEveryMinutes": 30
   },
   {
     "id": "cognex",
@@ -573,7 +582,8 @@
       "locations": []
     },
     "minScore": 60,
-    "paused": false
+    "paused": false,
+    "checkEveryMinutes": 30
   },
   {
     "id": "adtran",
@@ -608,7 +618,8 @@
       "locations": []
     },
     "minScore": 60,
-    "paused": false
+    "paused": false,
+    "checkEveryMinutes": 30
   },
   {
     "id": "generac",
@@ -643,6 +654,7 @@
       "locations": []
     },
     "minScore": 60,
-    "paused": false
+    "paused": false,
+    "checkEveryMinutes": 30
   }
 ]

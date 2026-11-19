@@ -26,7 +26,7 @@ cron-job.org (every 5 min) -> GitHub Actions (.github/workflows/poll.yml) -> pyt
 
 | id | Company | ATS adapter | Notes |
 |---|---|---|---|
-| sel | Schweitzer Engineering Labs | workday | |
+| sel | Schweitzer Engineering Labs | workday | all Workday boards: `checkEveryMinutes: 30` (see Open issue) |
 | microsoft | Microsoft | eightfold | newest 5 pages of "software"; `checkEveryMinutes: 15`; still rate-limits now and then (see below) |
 | mesa | Mesa | ukg_pro | |
 | profisee | Profisee (the CBIZ20626 board) | ukg_ready | |
@@ -85,10 +85,12 @@ Context: I graduate in **May 2027** and am looking for new-grad software/firmwar
 new-grad fit matter most. Do these in order; 1 and 2 together first.
 
 **For the job search now**
-1. **New-grad scoring.** Tell the scorer (`matching/rerank.py` prompt) I graduate May 2027: rank "Software Engineer I",
-   "Associate", "New Grad", "Early Career" higher and roles asking 3-5+ years lower.
-2. **Skip senior roles.** Add "senior", "sr", "staff", "principal", "lead", "manager" to `titleExclude` before scoring
-   (fewer useless alerts, lower API cost).
+1. ~~**New-grad scoring.**~~ Done 2026-11-15: the scorer prompt (`matching/rerank.py`) says I graduate May 2027,
+   ranks "Software Engineer I" / "Associate" / "New Grad" / "Early Career" higher, and scores roles asking 3-5+ years
+   (and internships) below 40.
+2. ~~**Skip senior roles.**~~ Done 2026-11-15: titles with "senior", "sr", "staff", "principal", "lead" or "manager"
+   are skipped for every company before scoring (`SENIOR_TITLE_TERMS` in `filters.py`). It is a built-in list, not
+   `titleExclude`, because `titleAlways` beats `titleExclude` and would let "Senior Software Engineer" through.
 3. **Early-career boards.** Add companies' separate new-grad/university boards, like `itron_early`.
 
 **Better alerts**
@@ -107,8 +109,19 @@ new-grad fit matter most. Do these in order; 1 and 2 together first.
 9. **Reminders before it stops:** Telegram reminder 2 weeks before the GitHub token expires (2027-02-09), and turn on
    cron-job.org's failure email.
 
-**Open issue:** Zebra rate-limits GitHub's servers. It is on hourly checks since 2026-11-16; if the daily message
-still says "Problems: zebra", set `"paused": true` for it.
+**Open issue: Workday rate-limits GitHub's servers.** Since about 07:00 UTC on 2026-11-16 every Workday board
+gets `429` from GitHub Actions on almost every run (single requests work from a home connection, but bursts get 429 there too). Reduced load
+the same day:
+- a `429` is no longer retried (`RETRY_STATUSES` in `adapters/http.py`);
+- after the first `429` in a run, the other boards on that job system are skipped for the run (`poll_all` in `cli.py`);
+- Workday boards are checked every 30 min (`checkEveryMinutes: 30`; Zebra stays at 60).
+- Workday requests are paced 5 s apart (`REQUEST_INTERVAL_SECONDS` in `adapters/workday.py`), and a run checks at
+  most 3 Workday boards (`MAX_BOARDS_PER_RUN` in `cli.py`); the rest go first next run. Measured 2026-11-19: Workday
+  returns `429` after about 6 quick requests to one board, **from a home connection too**, so pacing is the real fix.
+  The workflow timeout is 15 min to fit the slower runs.
+
+If the daily message still lists the Workday companies under "Problems" after a day, the next option is to run the
+poll from a self-hosted GitHub runner on a home machine (it only runs while that machine is on), or pause them.
 
 ## Developing
 
