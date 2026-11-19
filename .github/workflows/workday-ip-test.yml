@@ -1,6 +1,6 @@
 name: Workday IP test (temporary)
 
-# One-off: does Workday answer 200 from GitHub's other hosted server types? Deleted after the test.
+# One-off: why does Workday answer 429 to poll.yml but 200 to curl from the same servers? Deleted after the test.
 on:
   workflow_dispatch:
 
@@ -9,25 +9,31 @@ permissions:
 
 jobs:
   probe:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     defaults:
       run:
-        shell: bash
+        working-directory: backend/functions
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q -r requirements.txt
       - name: Probe Workday
         run: |
-          probe() {
-            curl -s -o /dev/null -w "%{http_code}" -X POST -H 'Content-Type: application/json' \
-              -d "{\"appliedFacets\":{},\"limit\":20,\"offset\":0,\"searchText\":\"$2\"}" "$1"
-          }
           SEL=https://selinc.wd1.myworkdayjobs.com/wday/cxs/selinc/SEL/jobs
-          CAT=https://cat.wd5.myworkdayjobs.com/wday/cxs/cat/CaterpillarCareers/jobs
-          for attempt in 1 2; do
-            echo "RESULT ${{ matrix.os }} attempt $attempt: sel=$(probe $SEL '') caterpillar=$(probe $CAT software)"
-            sleep 10
-          done
+          BODY='{"appliedFacets":{},"limit":20,"offset":0,"searchText":""}'
+          echo "RESULT curl default headers: $(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "$BODY" $SEL)"
+          sleep 6
+          echo "RESULT curl with our headers: $(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' -A 'job-alerts/0.1' -d "$BODY" $SEL)"
+          sleep 6
+          python - <<'EOF'
+          import requests
+          from job_alerts.adapters.http import build_session
+          url = "https://selinc.wd1.myworkdayjobs.com/wday/cxs/selinc/SEL/jobs"
+          body = {"appliedFacets": {}, "limit": 20, "offset": 0, "searchText": ""}
+          print("RESULT python adapter session:", build_session().post(url, json=body, timeout=30).status_code)
+          import time; time.sleep(6)
+          print("RESULT python plain requests:", requests.post(url, json=body, timeout=30).status_code)
+          EOF
