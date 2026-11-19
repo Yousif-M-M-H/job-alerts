@@ -14,7 +14,7 @@ from pathlib import Path
 from .adapters.base import AdapterError, RateLimitedError
 from .adapters.registry import build_adapter
 from .config import ConfigError, parse_companies
-from .health import FAILURES_BEFORE_WARNING, evaluate, is_due, load_health, save_health, scoring_status
+from .health import evaluate, is_due, load_health, save_health, scoring_status
 from .matching.rerank import ClaudeScorer
 from .models import Company, PollResult
 from .notify.base import NotifyError
@@ -101,8 +101,8 @@ def main() -> int:
     outcomes, results = poll_all(
         due, lambda company: poll_company(company, build_adapter(company), store, score_job, notify)
     )
-    _report_health(args.health, health, outcomes, results, notify, board_count=len(selected))
-    return exit_code(outcomes, health.get("failures", {}))
+    new_warned = _report_health(args.health, health, outcomes, results, notify, board_count=len(selected))
+    return exit_code(health.get("warned", []), new_warned)
 
 
 def cap_per_ats(
@@ -153,24 +153,20 @@ def poll_all(
     return outcomes, tuple(results)
 
 
-def exit_code(outcomes: dict[str, bool], old_failures: dict[str, int]) -> int:
-    """1 only on the run where a company reaches 3 failures in a row (when Telegram warns too).
+def exit_code(old_warned: list[str], new_warned: list[str]) -> int:
+    """1 only on a run that sends a new 'not working' warning, so red runs match Telegram.
 
-    Boards blip often (timeouts, 5xx, rate limits). A red run for every blip hid real problems,
-    so one-off failures stay green and are still logged as FAILED; one red run per incident.
+    Boards blip often (timeouts, 5xx, rate limits); those stay green and are still logged.
     """
-    reached = any(
-        not is_ok and old_failures.get(cid, 0) + 1 == FAILURES_BEFORE_WARNING
-        for cid, is_ok in outcomes.items()
-    )
-    return 1 if reached else 0
+    return 1 if set(new_warned) - set(old_warned) else 0
 
 
 def _report_health(
     path: Path, health: dict, outcomes: dict[str, bool], results: tuple[PollResult, ...],
     notify: TelegramNotifier, board_count: int,
-) -> None:
-    """Saves new health only once its messages are sent, so a failed send retries next run."""
+) -> list[str]:
+    """Saves new health only once its messages are sent, so a failed send retries next run.
+    Returns the companies now warned about."""
     now = datetime.now(timezone.utc)
     new_health, messages = evaluate(health, outcomes, scoring_status(results), now, board_count)
     try:
@@ -178,8 +174,9 @@ def _report_health(
             notify.send_text(message)
     except NotifyError as error:
         print(f"Health message not sent, will retry: {error}", file=sys.stderr)
-        return
+        return new_health["warned"]
     save_health(path, new_health)
+    return new_health["warned"]
 
 
 if __name__ == "__main__":

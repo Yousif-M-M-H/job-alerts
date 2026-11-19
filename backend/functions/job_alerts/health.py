@@ -1,7 +1,7 @@
 """Decides which health messages to send. Pure: takes the old health, returns the new one.
 
-Warnings fire once when a problem starts and once when it clears, so a long outage
-doesn't ping every 5 minutes. The daily message is the check on the schedule itself:
+Warnings fire once when a problem starts (3 failures, an hour since the last success) and once
+when it clears (3 successes), so a long or flapping outage doesn't ping every 5 minutes. The daily message is the check on the schedule itself:
 if it stops arriving, the bot has stopped running.
 """
 import json
@@ -14,6 +14,8 @@ from typing import Any
 from .models import Company, PollResult
 
 FAILURES_BEFORE_WARNING = 3
+OUTAGE_MINUTES_BEFORE_WARNING = 60
+SUCCESSES_BEFORE_RECOVERY = 3
 DAILY_MESSAGE_HOUR_UTC = 13  # About 8-9 am in Chattanooga.
 INTERVAL_SLACK_MINUTES = 2  # Runs start a little late, so a 15-minute company isn't pushed to 20.
 
@@ -34,26 +36,62 @@ def scoring_status(results: tuple[PollResult, ...]) -> ScoringStatus:
     )
 
 
-def _update_companies(health: dict[str, Any], outcomes: dict[str, bool]) -> tuple[dict[str, int], list[str], list[str]]:
+@dataclass(frozen=True)
+class _CompanyHealth:
+    failures: dict[str, int]
+    ok_streak: dict[str, int]
+    last_ok: dict[str, str]
+    warned: list[str]
+    messages: list[str]
+
+
+def _is_down_long_enough(last_ok: str | None, now: datetime) -> bool:
+    """No recorded success (old health file, new company): the failure count alone decides."""
+    return last_ok is None or now - datetime.fromisoformat(last_ok) >= timedelta(minutes=OUTAGE_MINUTES_BEFORE_WARNING)
+
+
+def _summary(new_warnings: list[str], recovered: list[str]) -> list[str]:
+    """One message per run, however many companies changed."""
+    lines = []
+    if new_warnings:
+        lines.append(f"⚠️ Not working: {', '.join(new_warnings)}. New jobs there can be missed until this is fixed.")
+    if recovered:
+        lines.append(f"✅ Working again: {', '.join(recovered)}.")
+    return ["\n".join(lines)] if lines else []
+
+
+def _update_companies(health: dict[str, Any], outcomes: dict[str, bool], now: datetime) -> _CompanyHealth:
+    """Warn after FAILURES_BEFORE_WARNING failures in a row once the last success is an hour old.
+    All-clear only after SUCCESSES_BEFORE_RECOVERY successes in a row, so a board that gets through
+    now and then stays in one 'not working' state instead of flipping (2026-11-16..19: ~1,100 messages).
+    """
     old_failures: dict[str, int] = health.get("failures", {})
-    warned = set(health.get("warned", []))
-    # Companies skipped this run keep their count, so their 3-in-a-row warning still works.
-    failures = {cid: count for cid, count in old_failures.items() if cid not in outcomes}
-    messages: list[str] = []
+    old_streak: dict[str, int] = health.get("okStreak", {})
+    old_last_ok: dict[str, str] = health.get("lastOk", {})
+    old_warned = set(health.get("warned", []))
+    # Companies skipped this run keep their counts.
+    failures = {cid: n for cid, n in old_failures.items() if cid not in outcomes}
+    ok_streak = {cid: n for cid, n in old_streak.items() if cid not in outcomes}
+    last_ok = {**old_last_ok, **{cid: now.isoformat() for cid, is_ok in outcomes.items() if is_ok}}
+    new_warnings: list[str] = []
+    recovered: list[str] = []
     for company_id, is_ok in outcomes.items():
+        is_warned = company_id in old_warned
         if is_ok:
-            if company_id in warned:
-                messages.append(f"✅ {company_id} is working again.")
-                warned.discard(company_id)
+            streak = old_streak.get(company_id, 0) + 1
+            if is_warned and streak >= SUCCESSES_BEFORE_RECOVERY:
+                recovered.append(company_id)
+            elif is_warned:
+                ok_streak[company_id] = streak
             continue
         failures[company_id] = old_failures.get(company_id, 0) + 1
-        if failures[company_id] >= FAILURES_BEFORE_WARNING and company_id not in warned:
-            messages.append(
-                f"⚠️ {company_id} has failed {failures[company_id]} checks in a row. "
-                "New jobs there can be missed until this is fixed."
-            )
-            warned.add(company_id)
-    return failures, sorted(warned), messages
+        is_due = failures[company_id] >= FAILURES_BEFORE_WARNING and _is_down_long_enough(
+            old_last_ok.get(company_id), now
+        )
+        if is_due and not is_warned:
+            new_warnings.append(company_id)
+    warned = sorted((old_warned | set(new_warnings)) - set(recovered))
+    return _CompanyHealth(failures, ok_streak, last_ok, warned, _summary(new_warnings, recovered))
 
 
 def _update_scoring(was_warned: bool, status: ScoringStatus) -> tuple[bool, list[str]]:
@@ -81,18 +119,20 @@ def evaluate(
     board_count: int | None = None,
 ) -> tuple[dict[str, Any], tuple[str, ...]]:
     """Returns the new health and the messages to send."""
-    failures, warned, company_messages = _update_companies(health, outcomes)
+    companies = _update_companies(health, outcomes, now)
     scoring_warned, scoring_messages = _update_scoring(bool(health.get("scoringWarned")), status)
     last_sent = health.get("lastDailyMessage", "")
-    daily = _daily_message(last_sent, now, len(outcomes) if board_count is None else board_count, warned)
+    daily = _daily_message(last_sent, now, len(outcomes) if board_count is None else board_count, companies.warned)
     new_health = {
-        "failures": failures,
-        "warned": warned,
+        "failures": companies.failures,
+        "okStreak": companies.ok_streak,
+        "lastOk": companies.last_ok,
+        "warned": companies.warned,
         "scoringWarned": scoring_warned,
         "lastDailyMessage": now.date().isoformat() if daily else last_sent,
         "lastChecked": {**health.get("lastChecked", {}), **{cid: now.isoformat() for cid in outcomes}},
     }
-    return new_health, (*company_messages, *scoring_messages, *daily)
+    return new_health, (*companies.messages, *scoring_messages, *daily)
 
 
 def is_due(company: Company, health: dict[str, Any], now: datetime) -> bool:

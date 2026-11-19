@@ -1,7 +1,7 @@
 """Failure warnings fire once, recover once, and the daily message fires once a day."""
 from datetime import datetime, timezone
 
-from job_alerts.health import FAILURES_BEFORE_WARNING, ScoringStatus, evaluate, scoring_status
+from job_alerts.health import FAILURES_BEFORE_WARNING, SUCCESSES_BEFORE_RECOVERY, ScoringStatus, evaluate, scoring_status
 from job_alerts.models import PollResult
 
 MORNING = datetime(2026, 11, 6, 14, tzinfo=timezone.utc)
@@ -29,11 +29,40 @@ def test_success_resets_the_failure_count():
         assert messages == ()
 
 
-def test_recovery_message_sent_once():
+def test_recovery_needs_several_successes_and_is_sent_once():
     health = {**SETTLED, "warned": ["sel"], "failures": {"sel": 9}}
+    for _ in range(SUCCESSES_BEFORE_RECOVERY - 1):
+        health, messages = run(health, {"sel": True})
+        assert messages == ()
     health, messages = run(health, {"sel": True})
-    assert len(messages) == 1 and "working again" in messages[0]
+    assert len(messages) == 1 and "working again" in messages[0].lower() and "sel" in messages[0]
     assert run(health, {"sel": True})[1] == ()
+
+
+def test_a_flapping_board_sends_one_warning_and_nothing_more():
+    health, sent = {**SETTLED}, []
+    pattern = [False] * FAILURES_BEFORE_WARNING + [True, False, False, False] * 20
+    for is_ok in pattern:
+        health, messages = run(health, {"bcbst": is_ok})
+        sent.extend(messages)
+    assert len(sent) == 1 and "bcbst" in sent[0]
+
+
+def test_short_blips_do_not_warn_when_the_board_worked_recently():
+    from datetime import timedelta
+
+    health, _ = run(SETTLED, {"sel": True})
+    for minutes in range(5, 60, 5):  # 11 failures, all within an hour of the last success
+        health, messages = run(health, {"sel": False}, now=MORNING + timedelta(minutes=minutes))
+        assert messages == ()
+    _, messages = run(health, {"sel": False}, now=MORNING + timedelta(minutes=60))
+    assert len(messages) == 1 and "sel" in messages[0]
+
+
+def test_changes_in_one_run_come_as_one_message():
+    health = {**SETTLED, "failures": {"a": 2, "b": 2}}
+    _, messages = run(health, {"a": False, "b": False})
+    assert len(messages) == 1 and "a" in messages[0] and "b" in messages[0]
 
 
 def test_scoring_warning_once_then_recovery():

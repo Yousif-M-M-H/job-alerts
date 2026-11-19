@@ -19,8 +19,11 @@ cron-job.org (every 5 min) -> GitHub Actions (.github/workflows/poll.yml) -> pyt
   daily message) are committed by the workflow after every run. Runs check out the latest `main`.
 - **Secrets (GitHub repo settings):** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `ANTHROPIC_API_KEY`, `CV_TEXT`.
   The repo is public: never print the CV, scores' reasons or secrets to logs.
-- **Health messages on Telegram:** a warning after 3 failed checks in a row for a company (and a "working again"
-  message), a warning if scoring fails, and a daily "🟢 still running" message after 13:00 UTC.
+- **Health messages on Telegram:** "⚠️ Not working" once a company has failed 3 checks in a row **and** had no
+  successful check for an hour; "✅ Working again" only after 3 successes in a row; all changes in one run come as
+  one message (`health.py`). A run is red only when it sends a new warning. Also a warning if scoring fails, and a
+  daily "🟢 still running" message after 13:00 UTC. (Before 2026-11-19 a single success cleared a warning, so boards
+  that got through now and then sent ~300 messages a day; replaying Nov 16-19 with the new rules gives 5-10.)
 
 ## Companies watched (18 companies, 19 boards, `backend/functions/companies.json`)
 
@@ -140,8 +143,7 @@ gh workflow run poll.yml -R Yousif-M-M-H/job-alerts
 
 Runs: https://github.com/Yousif-M-M-H/job-alerts/actions/workflows/poll.yml
 
-A run is red only when a company reaches **3 failed checks in a row**, the same moment the Telegram
-warning is sent, so each real incident gives one red run. Single blips (timeouts, 5xx, a `429` rate
+A run is red only when it sends a new Telegram "Not working" warning, so each real incident gives one red run. Single blips (timeouts, 5xx, a `429` rate
 limit) stay green but are still logged as `<company>: FAILED: ...` or `<company>: RATE LIMITED ...`.
 While a board stays down, later runs are green again; the Telegram "working again" message and the
 daily "Problems: ..." line tell you when it is fixed. Example: on 2026-11-13/14 Workday returned
