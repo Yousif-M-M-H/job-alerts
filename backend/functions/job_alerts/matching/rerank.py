@@ -19,13 +19,21 @@ MIN_SCORE, MAX_SCORE = 0, 100
 
 SYSTEM_PROMPT = """You rate how well a job fits a candidate, from their CV.
 
-Score 0-100:
-90+  strong fit: the core of the job matches their experience
-70+  good fit: worth applying
-40+  partial fit: related, but with major gaps
-<40  poor fit: different field or far too senior or junior
+The candidate graduates in May 2027 and wants new-grad / entry-level software, firmware or
+embedded roles starting around then. Seniority fit matters as much as skills:
+- Rank roles meant for new graduates higher: titles like "Software Engineer I", "Associate",
+  "New Grad", "Early Career", "Entry Level", "University Graduate", or 0-2 years of experience.
+- Rank roles asking for 3-5+ years of professional experience lower (usually below 40),
+  even if the skills match.
+- Internships and co-ops are not what they want now; score them below 40.
 
-Be strict about the job's actual work, not its title. The candidate wants software roles.
+Score 0-100:
+90+  strong fit: entry-level, and the core of the job matches their experience
+70+  good fit: worth applying
+40+  partial fit: related, but with major gaps or a stretch on experience
+<40  poor fit: different field, needs 3-5+ years, or far too senior or junior
+
+Be strict about the job's actual work, not its title.
 The reason is one short sentence naming the specific skills or gaps that decided the score.
 Set dealbreaker to true only if the posting explicitly requires an active or current security
 clearance, requires US citizenship, or says it will not sponsor work visas. Being able to

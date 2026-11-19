@@ -4,6 +4,11 @@ from collections.abc import Iterable
 
 from .models import TitleLocationFilter
 
+# Looking for new-grad roles: skip senior titles for every company before scoring (fewer useless
+# alerts, lower API cost). Checked before titleAlways, which would otherwise let in
+# "Senior Software Engineer". Whole words, so "Leadership Program" still passes.
+SENIOR_TITLE_TERMS = ("senior", "sr", "staff", "principal", "lead", "manager")
+
 
 # Clear statements that a job needs an active clearance or won't sponsor. Free, and works
 # when scoring is down. Claude catches other wording (see matching/rerank.py).
@@ -62,7 +67,9 @@ def _has_term(text: str, terms: Iterable[str]) -> bool:
 
 
 def passes_title(title: str, rules: TitleLocationFilter) -> bool:
-    """titleAlways beats titleExclude, which beats titleInclude."""
+    """Senior titles are always out. Then titleAlways beats titleExclude, which beats titleInclude."""
+    if _has_term(title, SENIOR_TITLE_TERMS):
+        return False
     if _has_term(title, rules.title_always):
         return True
     if _has_term(title, rules.title_exclude):

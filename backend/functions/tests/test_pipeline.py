@@ -261,3 +261,42 @@ def test_title_always_beats_exclude():
 
 def test_empty_location_filter_allows_all():
     assert passes_location(["Anywhere"], TitleLocationFilter())
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Senior Software Engineer",
+        "Sr. Firmware Engineer",
+        "Sr Software Developer",
+        "Staff Embedded Engineer",
+        "Principal Software Engineer",
+        "Lead Software Developer",
+        "Software Engineering Manager",
+    ],
+)
+def test_senior_titles_rejected_even_when_title_always_matches(title):
+    rules = TitleLocationFilter(title_include=("engineer",), title_always=("software", "firmware", "embedded", "developer"))
+    assert not passes_title(title, rules)
+
+
+@pytest.mark.parametrize(
+    "title",
+    ["Software Engineer I", "Associate Software Engineer", "New Grad Firmware Engineer", "Leadership Development Program - Software"],
+)
+def test_entry_level_titles_still_pass(title):
+    rules = TitleLocationFilter(title_include=("engineer",), title_always=("software", "firmware"))
+    assert passes_title(title, rules)
+
+
+def test_scorer_prompt_targets_new_grad_roles():
+    captured = {}
+
+    def capture(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(parsed_output=SimpleNamespace(score=80, reason="ok", dealbreaker=False), stop_reason="end_turn")
+
+    ClaudeScorer("cv", fake_client(capture))(JOB)
+    system = captured["system"]
+    assert "May 2027" in system
+    assert "New Grad" in system and "3-5+ years" in system
