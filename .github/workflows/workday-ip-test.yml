@@ -1,0 +1,33 @@
+name: Workday IP test (temporary)
+
+# One-off: does Workday answer 200 from GitHub's other hosted server types? Deleted after the test.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Probe Workday
+        run: |
+          probe() {
+            curl -s -o /dev/null -w "%{http_code}" -X POST -H 'Content-Type: application/json' \
+              -d "{\"appliedFacets\":{},\"limit\":20,\"offset\":0,\"searchText\":\"$2\"}" "$1"
+          }
+          SEL=https://selinc.wd1.myworkdayjobs.com/wday/cxs/selinc/SEL/jobs
+          CAT=https://cat.wd5.myworkdayjobs.com/wday/cxs/cat/CaterpillarCareers/jobs
+          for attempt in 1 2; do
+            echo "RESULT ${{ matrix.os }} attempt $attempt: sel=$(probe $SEL '') caterpillar=$(probe $CAT software)"
+            sleep 10
+          done
