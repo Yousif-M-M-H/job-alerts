@@ -1,0 +1,46 @@
+{
+ "failures": {
+  "abb": 709,
+  "adtran": 9,
+  "asurion": 6,
+  "bentley": 8,
+  "caterpillar": 1030,
+  "cognex": 9,
+  "generac": 230,
+  "itron": 9,
+  "sel": 26,
+  "trimble": 26,
+  "zebra": 1
+ },
+ "lastChecked": {
+  "abb": "2026-11-19T23:05:31.179609+00:00",
+  "adtran": "2026-11-19T23:11:13.881566+00:00",
+  "asurion": "2026-11-19T23:05:31.179609+00:00",
+  "bcbst": "2026-11-19T22:55:40.749938+00:00",
+  "bentley": "2026-11-19T22:50:31.983149+00:00",
+  "caterpillar": "2026-11-19T22:55:40.749938+00:00",
+  "cognex": "2026-11-19T23:11:13.881566+00:00",
+  "generac": "2026-11-19T23:15:42.998623+00:00",
+  "itron": "2026-11-19T22:50:31.983149+00:00",
+  "itron_early": "2026-11-19T22:55:40.749938+00:00",
+  "sel": "2026-11-19T22:50:31.983149+00:00",
+  "trimble": "2026-11-19T23:05:31.179609+00:00",
+  "zebra": "2026-11-19T23:11:13.881566+00:00"
+ },
+ "lastDailyMessage": "2026-11-19",
+ "lastOk": {},
+ "okStreak": {},
+ "scoringWarned": false,
+ "warned": [
+  "abb",
+  "adtran",
+  "asurion",
+  "bentley",
+  "caterpillar",
+  "cognex",
+  "generac",
+  "itron",
+  "sel",
+  "trimble"
+ ]
+}

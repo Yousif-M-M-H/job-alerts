@@ -64,6 +64,10 @@ def main() -> int:
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--state", type=Path, default=DEFAULT_STATE)
     parser.add_argument("--health", type=Path, default=DEFAULT_HEALTH)
+    # Workday blocks GitHub's servers, so Workday boards run on a home machine (poll-workday.yml)
+    # and the GitHub-hosted run skips them. Each side keeps its own --state and --health files.
+    parser.add_argument("--only-ats", action="append", default=[], help="only this job system (repeatable)")
+    parser.add_argument("--skip-ats", action="append", default=[], help="skip this job system (repeatable)")
     args = parser.parse_args()
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(message)s")
 
@@ -79,7 +83,8 @@ def main() -> int:
         print(f"Bad config {args.config}: {error}", file=sys.stderr)
         return 2
 
-    selected = [c for c in companies if not c.is_paused and args.company in (None, c.id)]
+    in_scope = select_by_ats(companies, only=tuple(args.only_ats), skip=tuple(args.skip_ats))
+    selected = [c for c in in_scope if not c.is_paused and args.company in (None, c.id)]
     if not selected:
         print("No matching unpaused company.", file=sys.stderr)
         return 2
@@ -103,6 +108,11 @@ def main() -> int:
     )
     new_warned = _report_health(args.health, health, outcomes, results, notify, board_count=len(selected))
     return exit_code(health.get("warned", []), new_warned)
+
+
+def select_by_ats(companies: list[Company], only: tuple[str, ...], skip: tuple[str, ...]) -> list[Company]:
+    """Companies on the `only` job systems (all when empty), minus those on `skip`."""
+    return [c for c in companies if (not only or c.ats in only) and c.ats not in skip]
 
 
 def cap_per_ats(

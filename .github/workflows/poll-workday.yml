@@ -1,0 +1,52 @@
+name: Poll Workday boards (home runner)
+
+# Workday answers GitHub's own servers with 429 on the first request (2026-11-19), but not a home
+# connection, so Workday boards run here, on a self-hosted runner on the home Mac.
+# Started by poll.yml after each of its runs. While the Mac is off or asleep, one run waits in the queue.
+#
+# The repo is public: this workflow must never run code from pull requests on the home runner.
+# Only workflow_dispatch triggers it, and it checks out main.
+on:
+  workflow_dispatch:
+
+# One run at a time; a newer queued run replaces an older queued one.
+concurrency:
+  group: poll-workday
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  PYTHON: /opt/homebrew/bin/python3.11
+
+jobs:
+  poll:
+    runs-on: [self-hosted, macOS, job-alerts-home]
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend/functions
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      # Kept outside the checkout so it survives between runs; pip skips what is already installed.
+      - name: Install dependencies
+        run: |
+          VENV="$RUNNER_TOOL_CACHE/job-alerts-venv"
+          [ -x "$VENV/bin/python" ] || "$PYTHON" -m venv "$VENV"
+          "$VENV/bin/pip" install -q -r requirements.txt
+          echo "VENV=$VENV" >> "$GITHUB_ENV"
+      - name: Poll and alert
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CV_TEXT: ${{ secrets.CV_TEXT }}
+        run: >-
+          "$VENV/bin/python" -m job_alerts.cli --only-ats workday
+          --state state-workday.json --health health-workday.json
+      - name: Save seen jobs
+        if: always()
+        run: ../../.github/scripts/save-state.sh state-workday.json health-workday.json

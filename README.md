@@ -9,14 +9,29 @@ that matches my CV. Alerts only: applying happens on the company's site. Design 
 cron-job.org (every 5 min) -> GitHub Actions (.github/workflows/poll.yml) -> python -m job_alerts.cli
   per company: list jobs -> skip seen IDs -> title filter -> details -> USA only -> clearance/sponsorship skip
   -> Claude Haiku scores against the CV (0-100) -> score >= 60 -> Telegram alert -> save seen IDs (state.json)
+poll.yml (GitHub's servers, every board except Workday) -> at the end, starts poll-workday.yml
+poll-workday.yml (self-hosted runner on the home Mac, Workday boards only) -> state-workday.json, health-workday.json
 ```
+
+- **Why two workflows (since 2026-11-19):** Workday answers GitHub's servers with `429` on the very first request,
+  while the same request from the home connection gets `200`. So Workday boards run on a self-hosted runner on the
+  home Mac (`~/actions-runner-job-alerts`, label `job-alerts-home`, started at login as a LaunchAgent). Workday
+  boards are only checked while the Mac is on and awake; at most one Workday run waits in the queue meanwhile. Each
+  side keeps its own state and health files, so their commits never conflict (`.github/scripts/save-state.sh`
+  rebases and retries a rejected push). Each side sends its own daily 🟢 message ("watching 13 boards" is the Mac).
+  - Runner status: `gh api repos/Yousif-M-M-H/job-alerts/actions/runners --jq '.runners[] | .name + " " + .status'`.
+    Restart: `cd ~/actions-runner-job-alerts && ./svc.sh stop && ./svc.sh start`.
+  - The repo is public, so the home runner must never run pull-request code: `poll-workday.yml` only has
+    `workflow_dispatch` and checks out `main`, and fork PRs from all outside contributors need approval
+    (repo setting, changed 2026-11-19). Never add a `pull_request` trigger to a workflow that uses this runner.
 
 - **Trigger:** cron-job.org sends a POST to the workflow's `dispatches` API every 5 minutes. It uses a fine-grained
   token from the **Yousif-M-M-H** account (only `job-alerts`, Actions: read and write). The token **expires 2027-02-09**.
   To renew it, make a new token and set the `Authorization: Bearer <token>` header on cron-job.org. GitHub's own
   `schedule` stays on as a slow backup (it runs only every few hours).
 - **State:** `backend/functions/state.json` (seen job IDs) and `health.json` (failure counts, last check times,
-  daily message) are committed by the workflow after every run. Runs check out the latest `main`.
+  daily message) are committed by the workflow after every run; Workday boards use `state-workday.json` and
+  `health-workday.json`. Runs check out the latest `main`.
 - **Secrets (GitHub repo settings):** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `ANTHROPIC_API_KEY`, `CV_TEXT`.
   The repo is public: never print the CV, scores' reasons or secrets to logs.
 - **Health messages on Telegram:** "⚠️ Not working" once a company has failed 3 checks in a row **and** had no
@@ -82,49 +97,76 @@ Epic Systems (only ~15 permanent role pages, nothing new to alert on).
 4. Run the tests, push, then trigger a run. A new company's first run is a **baseline**: it marks every current job
    as seen and sends nothing.
 
-## Next steps (planned improvements)
+## Status and next steps (updated 2026-11-19, start a new session here)
 
-Context: I graduate in **May 2027** and am looking for new-grad software/firmware/embedded roles, so speed and
-new-grad fit matter most. Do these in order; 1 and 2 together first.
+Context: I graduate in **May 2027** and want new-grad software/firmware/embedded roles, so speed and new-grad fit
+matter most.
 
-**For the job search now**
-1. ~~**New-grad scoring.**~~ Done 2026-11-15: the scorer prompt (`matching/rerank.py`) says I graduate May 2027,
-   ranks "Software Engineer I" / "Associate" / "New Grad" / "Early Career" higher, and scores roles asking 3-5+ years
-   (and internships) below 40.
-2. ~~**Skip senior roles.**~~ Done 2026-11-15: titles with "senior", "sr", "staff", "principal", "lead" or "manager"
-   are skipped for every company before scoring (`SENIOR_TITLE_TERMS` in `filters.py`). It is a built-in list, not
-   `titleExclude`, because `titleAlways` beats `titleExclude` and would let "Senior Software Engineer" through.
-3. **Early-career boards.** Add companies' separate new-grad/university boards, like `itron_early`.
+### What happened (2026-11-09 to 2026-11-19, full diagnosis done 2026-11-19)
+- **Workday rate limit.** From about 07:00 UTC on 2026-11-16, Workday answered almost every check with `429`. SEL,
+  Caterpillar, ABB and Generac had about 0% successful checks for 3 days; the other Workday boards 3-20%. Measured:
+  Workday returns `429` after **about 6 quick requests to one board**, from a home connection too, and the adapter
+  sent pages back-to-back. Big boards (16-25 pages) could never finish.
+- **Warning flood.** A single lucky success cleared a warning, so flapping boards sent about 1,160 health messages in
+  10 days against **34 job alerts** (26 Microsoft, 6 Schwab, 2 SEL, none from the other 16 boards).
+- **Weak targeting.** Senior titles got past the title filter (`titleAlways` beat `titleExclude`) and the scorer did
+  not know I am a new grad. Most alerts scored 62-72, just over `minScore: 60`.
+- An earlier Workday outage (521 errors / "did not return JSON") hit on 2026-11-13/14 and recovered on its own.
 
-**Better alerts**
-4. **👍 / 👎 buttons** on Telegram alerts, read with `getUpdates` each run; feed 👎 reasons into scoring. Also
+### Deployed 2026-11-19 (live on `main`)
+- `d3e49ec` **New-grad targeting:** the scorer prompt (`matching/rerank.py`) says I graduate May 2027, ranks entry-level
+  higher and 3-5+ year roles and internships below 40; titles with senior/sr/staff/principal/lead/manager are skipped
+  for every company before `titleAlways` (`SENIOR_TITLE_TERMS` in `filters.py`).
+- `505f0f7` **Workday pacing:** requests 5 s apart (`REQUEST_INTERVAL_SECONDS` in `adapters/workday.py`), at most 3
+  Workday boards per run (`MAX_BOARDS_PER_RUN` in `cli.py`, the rest go first next run), Workday checked every 30 min
+  (Zebra 60), `429` not retried, the rest of a job system skipped for the run after a `429`, workflow timeout 15 min.
+- `a7bd036` **No more warning flapping** (`health.py`): "⚠️ Not working" after 3 failures in a row **and** an hour with
+  no success; "✅ Working again" only after 3 successes in a row; one combined message per run; a run is red only when
+  it sends a new warning. Replaying Nov 16-19 gives 5-10 messages a day instead of 220-320.
+
+- **Pacing was not enough (checked 2026-11-19 23:00 UTC):** over 30 runs after `505f0f7`, 49 of 52 Workday attempts
+  got `429` on the run's first Workday request, so GitHub's servers are blocked, not our request rate. Moved Workday
+  to a self-hosted runner on the home Mac (see "Why two workflows" above).
+
+### Do first in a new session: check that the fixes worked
+1. **Workday checks succeed on the home runner.** `gh run list -R Yousif-M-M-H/job-alerts --workflow poll-workday.yml
+   --limit 20`, then open a recent run's "Poll and alert" log. Expect Workday boards with `open jobs` lines and no
+   `RATE LIMITED`. Target: every Workday board succeeds on 95%+ of checks while the Mac is on, and `failures` in
+   `backend/functions/health-workday.json` stays at 0 for SEL. The first Mac runs score every job posted since
+   2026-11-16, so expect a burst of alerts once.
+   - If `429`s show up from home too: raise `REQUEST_INTERVAL_SECONDS` (try 8-10 s) and/or lower `MAX_BOARDS_PER_RUN`.
+   - If runs sit in "queued": the Mac is asleep or the runner stopped (see runner status above).
+2. **Telegram is quiet.** The daily 🟢 message (after 13:00 UTC) should list few or no "Problems", with only a handful
+   of ⚠️/✅ messages a day. The companies still in `warned` from before need 3 good checks in a row to clear.
+3. **Alerts look right.** Over a week, alerts should be entry-level roles, more of them from SEL and the other Workday
+   companies.
+
+### Remaining work, in priority order
+4. **Log job titles** (not the scorer's reasons) for alerted and title-rejected jobs, so alert quality and the title
+   filter can be judged from the logs (now only IDs and scores are logged). Titles are public, so this is safe in a
+   public repo. Example gap: SEL rejected 68 of 76 new jobs on title, and the logs can't show which.
+5. **Drop the duplicate board:** all 26 `itron_early` jobs are also on `itron`. Remove `itron_early` or skip jobs
+   already alerted with the same company + title + location (also catches reposts with a new ID).
+6. **Weekly near-miss list** (scores 45-59) to tune `minScore: 60`; scores bunch at 22/35/42/62/72.
+7. **Early-career boards:** add companies' separate new-grad/university boards, but only ones that are not copies of
+   the main board (see 5).
+8. **👍 / 👎 buttons** on Telegram alerts, read with `getUpdates` each run; feed 👎 reasons into scoring. Also
    `/status` and `/pause <company>` commands.
-5. **No duplicate alerts.** Skip a job already alerted with the same company + title + location (two boards of one
-   company, or a repost with a new ID).
-6. **Weekly near-miss list.** Jobs scoring 45-59, to tune `minScore: 60`.
+9. **More companies:** power/grid companies like SEL with a real H-1B record for software roles (h1bdata.info).
+   Already rejected for rare or no sponsorship: Woodward, nVent, Xylem/Sensus, Badger Meter. For any company named,
+   check its job system (Workday / Greenhouse / Lever / Ashby / iCIMS) and H-1B record, then add.
+10. **Reminders before it stops:** Telegram reminder 2 weeks before the GitHub token expires (2027-02-09), and turn on
+    cron-job.org's failure email.
+11. **Warn when the home runner is down:** Workday is only checked while the Mac is awake. Have `poll.yml` send one
+    Telegram warning when `health-workday.json`'s newest `lastChecked` is over a few hours old. Also: a skipped
+    board after another Workday board's `429` counts as a failure (`poll_all` in `cli.py`), which inflates counts.
 
-**More companies**
-7. **Better power/grid companies** like SEL with a real H-1B record for software roles (check h1bdata.info).
-   Already rejected for rare or no sponsorship: Woodward, nVent, Xylem/Sensus, Badger Meter.
-8. **Any company named:** check its job system (Workday / Greenhouse / Lever / Ashby / iCIMS) and H-1B record, then add.
-
-**Keeping it running**
-9. **Reminders before it stops:** Telegram reminder 2 weeks before the GitHub token expires (2027-02-09), and turn on
-   cron-job.org's failure email.
-
-**Open issue: Workday rate-limits GitHub's servers.** Since about 07:00 UTC on 2026-11-16 every Workday board
-gets `429` from GitHub Actions on almost every run (single requests work from a home connection, but bursts get 429 there too). Reduced load
-the same day:
-- a `429` is no longer retried (`RETRY_STATUSES` in `adapters/http.py`);
-- after the first `429` in a run, the other boards on that job system are skipped for the run (`poll_all` in `cli.py`);
-- Workday boards are checked every 30 min (`checkEveryMinutes: 30`; Zebra stays at 60).
-- Workday requests are paced 5 s apart (`REQUEST_INTERVAL_SECONDS` in `adapters/workday.py`), and a run checks at
-  most 3 Workday boards (`MAX_BOARDS_PER_RUN` in `cli.py`); the rest go first next run. Measured 2026-11-19: Workday
-  returns `429` after about 6 quick requests to one board, **from a home connection too**, so pacing is the real fix.
-  The workflow timeout is 15 min to fit the slower runs.
-
-If the daily message still lists the Workday companies under "Problems" after a day, the next option is to run the
-poll from a self-hosted GitHub runner on a home machine (it only runs while that machine is on), or pause them.
+### Notes for analysis sessions
+- Downloading logs for thousands of runs uses up the account's GitHub API limit (5,000 requests/hour), which the
+  cron-job.org token shares. On 2026-11-19 this happened for about an hour; runs kept going, but fetch only the runs
+  you need (for example, only runs whose `state.json` commit added new job IDs).
+- `health.json` and `state.json` are committed after every run, so `git log` of those files is a full history of
+  checks, failures and new jobs without using the API.
 
 ## Developing
 

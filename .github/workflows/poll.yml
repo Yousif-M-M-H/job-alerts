@@ -12,11 +12,11 @@ concurrency:
 
 permissions:
   contents: write
+  actions: write  # to start poll-workday.yml
 
 jobs:
   poll:
     runs-on: ubuntu-latest
-    # Workday requests are paced 5 s apart: 3 big boards can take ~6 min on their own.
     timeout-minutes: 15
     defaults:
       run:
@@ -38,15 +38,14 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CV_TEXT: ${{ secrets.CV_TEXT }}
-        run: python -m job_alerts.cli
+        # Workday blocks GitHub's servers; those boards run on the home Mac (poll-workday.yml).
+        run: python -m job_alerts.cli --skip-ats workday
       # Always save: alerts already sent must stay marked seen even if a later job failed.
       - name: Save seen jobs
         if: always()
-        run: |
-          git add state.json health.json
-          git diff --cached --quiet && exit 0
-          git config user.name "job-alerts-bot"
-          git config user.email "job-alerts-bot@users.noreply.github.com"
-          git commit -m "chore: update seen jobs"
-          git pull --rebase
-          git push
+        run: ../../.github/scripts/save-state.sh state.json health.json
+      - name: Start the Workday run on the home Mac
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run poll-workday.yml --repo "$GITHUB_REPOSITORY" --ref main
