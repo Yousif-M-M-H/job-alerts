@@ -1,0 +1,75 @@
+name: Workday client test (temporary)
+
+# One-off: which HTTP clients does Workday answer with 200 vs 429 from GitHub's servers?
+# 10 rounds x 5 clients per server, 3 servers in parallel. Deleted after the test.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        server: [a, b, c]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q requests "httpx[http2]"
+      - name: Probe Workday
+        shell: python
+        run: |
+          import itertools, json, subprocess, time
+          import httpx, requests
+
+          BOARDS = [
+              "https://selinc.wd1.myworkdayjobs.com/wday/cxs/selinc/SEL/jobs",
+              "https://cat.wd5.myworkdayjobs.com/wday/cxs/cat/CaterpillarCareers/jobs",
+              "https://cognex.wd1.myworkdayjobs.com/wday/cxs/cognex/External_Career_Site/jobs",
+              "https://generac.wd5.myworkdayjobs.com/wday/cxs/generac/External/jobs",
+              "https://bentleysystems.wd5.myworkdayjobs.com/wday/cxs/bentleysystems/bentley/jobs",
+          ]
+          BODY = {"appliedFacets": {}, "limit": 20, "offset": 0, "searchText": ""}
+          HEADERS = {"User-Agent": "job-alerts/0.1", "Accept": "application/json"}
+
+          def curl(url, version):
+              out = subprocess.run(
+                  ["curl", "-s", version, "-o", "/dev/null", "-w", "%{http_code}", "-X", "POST",
+                   "-H", "Content-Type: application/json", "-H", "Accept: application/json",
+                   "-A", "job-alerts/0.1", "-d", json.dumps(BODY), url],
+                  capture_output=True, text=True, timeout=30)
+              return int(out.stdout or 0)
+
+          def httpx_status(url, http2):
+              with httpx.Client(http2=http2, headers=HEADERS, timeout=30) as client:
+                  return client.post(url, json=BODY).status_code
+
+          CLIENTS = {
+              "curl-http1.1": lambda url: curl(url, "--http1.1"),
+              "curl-http2": lambda url: curl(url, "--http2"),
+              "requests": lambda url: requests.post(url, json=BODY, headers=HEADERS, timeout=30).status_code,
+              "httpx-http1.1": lambda url: httpx_status(url, False),
+              "httpx-http2": lambda url: httpx_status(url, True),
+          }
+          ip = requests.get("https://api.ipify.org", timeout=10).text
+          tally = {name: {} for name in CLIENTS}
+          board_cycle = itertools.cycle(BOARDS)
+          for round_no in range(10):
+              # Rotate client order each round so no client always goes first.
+              names = list(CLIENTS)[round_no % 5:] + list(CLIENTS)[:round_no % 5]
+              for name in names:
+                  url = next(board_cycle)
+                  try:
+                      status = CLIENTS[name](url)
+                  except Exception as error:
+                      status = type(error).__name__
+                  tally[name][status] = tally[name].get(status, 0) + 1
+                  print(f"round {round_no} {name} {url.split('/')[2]} -> {status}", flush=True)
+                  time.sleep(5)
+          for name, counts in tally.items():
+              print(f"TALLY ${{ matrix.server }} ip={ip} {name}: {counts}")
