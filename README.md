@@ -91,7 +91,7 @@ Epic Systems (only ~15 permanent role pages, nothing new to alert on).
 4. Run the tests, push, then trigger a run. A new company's first run is a **baseline**: it marks every current job
    as seen and sends nothing.
 
-## Status and next steps (updated 2026-11-19, start a new session here)
+## Status and next steps (updated 2026-11-20, start a new session here)
 
 Context: I graduate in **May 2027** and want new-grad software/firmware/embedded roles, so speed and new-grad fit
 matter most.
@@ -107,7 +107,7 @@ matter most.
   not know I am a new grad. Most alerts scored 62-72, just over `minScore: 60`.
 - An earlier Workday outage (521 errors / "did not return JSON") hit on 2026-11-13/14 and recovered on its own.
 
-### Deployed 2026-11-19 (live on `main`)
+### Deployed 2026-11-19 and 20 (live on `main`)
 - `d3e49ec` **New-grad targeting:** the scorer prompt (`matching/rerank.py`) says I graduate May 2027, ranks entry-level
   higher and 3-5+ year roles and internships below 40; titles with senior/sr/staff/principal/lead/manager are skipped
   for every company before `titleAlways` (`SENIOR_TITLE_TERMS` in `filters.py`).
@@ -117,22 +117,29 @@ matter most.
 - `a7bd036` **No more warning flapping** (`health.py`): "⚠️ Not working" after 3 failures in a row **and** an hour with
   no success; "✅ Working again" only after 3 successes in a row; one combined message per run; a run is red only when
   it sends a new warning. Replaying Nov 16-19 gives 5-10 messages a day instead of 220-320.
-
-- **Pacing was not enough (checked 2026-11-19 23:00 UTC):** over 30 runs after `505f0f7`, 49 of 52 Workday attempts
-  got `429` on the run's first Workday request. curl got `200` from every GitHub server type. A one-request test
-  suggested HTTP/2 fixed Python; it didn't (3 of 3 live runs still `429`), and a 10-request-per-client test showed
-  curl is what gets through. Fixed by sending Workday requests through curl (see "Workday requests go through curl"
-  above). A self-hosted runner on the home Mac was used for about 30 minutes in between and has been removed.
+- `31f5d0c` **Workday through curl** (2026-11-20 00:07 UTC): pacing alone did not help (49 of 52 Workday attempts in
+  30 runs still got `429` on the run's first request). Workday throttles Python HTTP clients from GitHub's servers,
+  but not curl (see "Workday requests go through curl" above), so the Workday adapter now calls curl.
+  Dead ends on the way, all removed: an HTTP/2 switch (`bf06478`, still `429`) and a self-hosted runner on the home
+  Mac (worked, but only while the Mac was awake).
+  - **First result:** the first 3 runs checked 7 of 7 Workday boards with no `429`: Asurion, ABB (all 453 jobs),
+    Trimble, Zebra, Cognex, ADTRAN, Generac (all 493). ABB's 54 jobs from the outage were filtered and scored; none
+    reached 60.
 
 ### Do first in a new session: check that the fixes worked
-1. **Workday checks succeed.** `gh run list -R Yousif-M-M-H/job-alerts --workflow poll.yml --limit 20`, then open a
-   recent run's "Poll and alert" log. Expect Workday boards with `open jobs` lines and no `RATE LIMITED`. Target:
-   every Workday board succeeds on 95%+ of checks over 24 h, and `failures` in `backend/functions/health.json`
-   stays at 0 for SEL.
-   - If `429`s continue: raise `REQUEST_INTERVAL_SECONDS` (try 8-10 s) and/or lower `MAX_BOARDS_PER_RUN` to 2.
+1. **Workday checks keep succeeding (curl fix, `31f5d0c`).** Only 3 runs were checked. Cheapest check without the
+   API: `git log -p --since=<date> -- backend/functions/health.json` and look at `failures`/`lastOk` for the 13
+   Workday boards; or `gh run list -R Yousif-M-M-H/job-alerts --workflow poll.yml --limit 20` and a few runs' "Poll
+   and alert" logs (expect `open jobs` lines, no `RATE LIMITED`). Target: every Workday board succeeds on 95%+ of
+   checks over 24 h, and SEL's `failures` in `backend/functions/health.json` stays at 0.
+   - If `429`s come back: first rerun the curl-vs-Python comparison (10+ requests per client), then try raising
+     `REQUEST_INTERVAL_SECONDS` (8-10 s) and/or lowering `MAX_BOARDS_PER_RUN` to 2.
+   - Microsoft (eightfold, still `requests`) also got `429` in at least 1 of the first 3 curl runs. If it keeps failing, test
+     whether curl helps there too.
    - Check run time stays well under the 15 min timeout (`gh run list` shows durations).
 2. **Telegram is quiet.** The daily 🟢 message (after 13:00 UTC) should list few or no "Problems", with only a handful
-   of ⚠️/✅ messages a day. The companies still in `warned` from before need 3 good checks in a row to clear.
+   of ⚠️/✅ messages a day. Ten Workday boards (and Microsoft) were still in `warned` on 2026-11-20 00:15 UTC; each
+   clears with one "✅ Working again" after 3 good checks in a row (about 90 min at 30-min intervals).
 3. **Alerts look right.** Over a week, alerts should be entry-level roles, more of them from SEL and the other Workday
    companies.
 
