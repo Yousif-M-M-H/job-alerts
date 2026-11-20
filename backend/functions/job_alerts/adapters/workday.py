@@ -14,7 +14,7 @@ from typing import Any
 
 from ..models import Company, Job, JobSummary
 from .base import AdapterError
-from .http import build_http2_client, fetch_json_http2, html_to_text
+from .http import fetch_json_curl, html_to_text
 
 PAGE_SIZE = 20
 # Measured 2026-11-19: a board returns 429 after about 6 quick requests and lets requests through
@@ -42,7 +42,6 @@ class WorkdayAdapter:
         self._company_id = company_id
         self._search_text = search_text
         self._base_url = f"https://{host}/wday/cxs/{tenant}/{site}"
-        self._client = build_http2_client()
         self._clock = clock
         self._sleep = sleep
         self._last_request_at: float | None = None
@@ -65,7 +64,7 @@ class WorkdayAdapter:
     def _request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
         self._wait_for_turn()
         try:
-            return fetch_json_http2(self._client, method, f"{self._base_url}{path}", **kwargs)
+            return fetch_json_curl(method, f"{self._base_url}{path}", **kwargs)
         finally:
             self._last_request_at = self._clock()
 

@@ -1,10 +1,11 @@
 """Shared HTTP and HTML helpers for adapters."""
+import json as jsonlib
+import subprocess
 import time
 from collections.abc import Callable
 from html.parser import HTMLParser
 from typing import Any
 
-import httpx
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -68,7 +69,7 @@ def fetch(session: requests.Session, method: str, url: str, **kwargs: Any) -> re
     return response
 
 
-def _json_value(response: requests.Response | httpx.Response, method: str, url: str) -> Any:
+def _json_value(response: requests.Response, method: str, url: str) -> Any:
     try:
         return response.json()
     except ValueError as error:
@@ -91,38 +92,44 @@ def fetch_json(session: requests.Session, method: str, url: str, **kwargs: Any) 
     return _json_object(fetch_json_value(session, method, url, **kwargs), method, url)
 
 
-def build_http2_client() -> httpx.Client:
-    """For Workday. From GitHub's servers it answers Python over HTTP/1.1 with 429 on the first request,
-    but HTTP/2 with 200 (same headers, same server; tested 2026-11-19). The User-Agent stays our own."""
-    return httpx.Client(
-        http2=True,
-        timeout=TIMEOUT_SECONDS,
-        headers={"Accept": "application/json", "User-Agent": USER_AGENT},
-    )
+def _run_curl(
+    method: str, url: str, body: dict[str, Any] | None, run: Callable[..., subprocess.CompletedProcess]
+) -> tuple[int, str]:
+    """Returns (HTTP status, response body). curl prints the status on the last line (-w)."""
+    args = ["curl", "-sS", "--max-time", str(TIMEOUT_SECONDS), "-X", method,
+            "-H", "Accept: application/json", "-A", USER_AGENT, "-w", "\n%{http_code}"]
+    if body is not None:
+        args = [*args, "-H", "Content-Type: application/json", "--data-binary", "@-"]
+    payload = None if body is None else jsonlib.dumps(body)
+    try:
+        result = run([*args, url], input=payload, capture_output=True, text=True, timeout=TIMEOUT_SECONDS + 10)
+    except (OSError, subprocess.SubprocessError) as error:
+        raise AdapterError(f"{method} {url} failed: could not run curl: {error}") from error
+    if result.returncode != 0:
+        raise AdapterError(f"{method} {url} failed: {result.stderr.strip() or f'curl exit {result.returncode}'}")
+    text, _, status = result.stdout.rpartition("\n")
+    return int(status), text
 
 
-def _send_http2(
-    client: httpx.Client, method: str, url: str, sleep: Callable[[float], None], **kwargs: Any
-) -> httpx.Response:
-    """Retries 5xx like build_session does; 429 is never retried."""
-    for attempt in range(MAX_RETRIES + 1):
-        try:
-            response = client.request(method, url, **kwargs)
-        except httpx.HTTPError as error:
-            raise AdapterError(f"{method} {url} failed: {error}") from error
-        is_retryable = response.status_code in RETRY_STATUSES and attempt < MAX_RETRIES
-        if not is_retryable:
-            return response
-        sleep(RETRY_BACKOFF_SECONDS * 2**attempt)
-    return response
-
-
-def fetch_json_http2(
-    client: httpx.Client, method: str, url: str, sleep: Callable[[float], None] = time.sleep, **kwargs: Any
+def fetch_json_curl(
+    method: str, url: str, json: dict[str, Any] | None = None,
+    run: Callable[..., subprocess.CompletedProcess] = subprocess.run,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> dict[str, Any]:
-    response = _send_http2(client, method, url, sleep, **kwargs)
-    if response.status_code == TOO_MANY_REQUESTS:
+    """For Workday. From GitHub's servers it answers Python HTTP clients (requests, httpx over HTTP/1.1
+    or HTTP/2) with 429 on 77 of 90 requests, but curl with 200 on 60 of 60, with the same headers and
+    User-Agent (tested 2026-11-19). Retries 5xx like build_session does; 429 is never retried."""
+    for attempt in range(MAX_RETRIES + 1):
+        status, text = _run_curl(method, url, json, run)
+        if status not in RETRY_STATUSES or attempt == MAX_RETRIES:
+            break
+        sleep(RETRY_BACKOFF_SECONDS * 2**attempt)
+    if status == TOO_MANY_REQUESTS:
         raise RateLimitedError(f"{method} {url} was rate limited (429)")
-    if response.is_error:
-        raise AdapterError(f"{method} {url} failed: HTTP {response.status_code}")
-    return _json_object(_json_value(response, method, url), method, url)
+    if status >= 400:
+        raise AdapterError(f"{method} {url} failed: HTTP {status}")
+    try:
+        payload = jsonlib.loads(text)
+    except ValueError as error:
+        raise AdapterError(f"{method} {url} did not return JSON (HTTP {status})") from error
+    return _json_object(payload, method, url)

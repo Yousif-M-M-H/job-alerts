@@ -11,11 +11,13 @@ cron-job.org (every 5 min) -> GitHub Actions (.github/workflows/poll.yml) -> pyt
   -> Claude Haiku scores against the CV (0-100) -> score >= 60 -> Telegram alert -> save seen IDs (state.json)
 ```
 
-- **Workday uses HTTP/2 (since 2026-11-19):** from GitHub's servers, Workday answers Python over HTTP/1.1 with `429`
-  on the very first request, but HTTP/2 with `200` (same headers and User-Agent, same server; curl gets `200` either
-  way). So the Workday adapter uses `httpx` with HTTP/2 (`build_http2_client` / `fetch_json_http2` in
-  `adapters/http.py`); the other adapters still use `requests`. If Workday starts returning `429` from GitHub again,
-  first test which client/protocol gets through from `ubuntu-latest` with a throwaway `workflow_dispatch` workflow.
+- **Workday requests go through curl (since 2026-11-19):** from GitHub's servers, Workday throttles Python HTTP
+  clients but not curl. Test on 3 `ubuntu-latest` servers, 10 interleaved requests per client: curl (HTTP/1.1 and
+  HTTP/2) 60 of 60 `200`; `requests` and `httpx` (HTTP/1.1 and HTTP/2) `429` on 77 of 90. Same headers and
+  User-Agent (`job-alerts/0.1`) everywhere, so it is how the client connects, not the server address or headers.
+  The Workday adapter calls curl (`fetch_json_curl` in `adapters/http.py`); the other adapters still use `requests`.
+  If Workday starts returning `429` from GitHub again, rerun that comparison with a throwaway `workflow_dispatch`
+  workflow (repeat each client 10+ times: single requests misled us once, see below).
 
 - **Trigger:** cron-job.org sends a POST to the workflow's `dispatches` API every 5 minutes. It uses a fine-grained
   token from the **Yousif-M-M-H** account (only `job-alerts`, Actions: read and write). The token **expires 2027-02-09**.
@@ -117,10 +119,10 @@ matter most.
   it sends a new warning. Replaying Nov 16-19 gives 5-10 messages a day instead of 220-320.
 
 - **Pacing was not enough (checked 2026-11-19 23:00 UTC):** over 30 runs after `505f0f7`, 49 of 52 Workday attempts
-  got `429` on the run's first Workday request. A test workflow then showed curl gets `200` from every GitHub
-  server type, and Python gets `200` over HTTP/2 but `429` over HTTP/1.1. Fixed by switching the Workday adapter
-  to HTTP/2 (see "Workday uses HTTP/2" above). A self-hosted runner on the home Mac was used for about 30 minutes
-  in between and has been removed.
+  got `429` on the run's first Workday request. curl got `200` from every GitHub server type. A one-request test
+  suggested HTTP/2 fixed Python; it didn't (3 of 3 live runs still `429`), and a 10-request-per-client test showed
+  curl is what gets through. Fixed by sending Workday requests through curl (see "Workday requests go through curl"
+  above). A self-hosted runner on the home Mac was used for about 30 minutes in between and has been removed.
 
 ### Do first in a new session: check that the fixes worked
 1. **Workday checks succeed.** `gh run list -R Yousif-M-M-H/job-alerts --workflow poll.yml --limit 20`, then open a
